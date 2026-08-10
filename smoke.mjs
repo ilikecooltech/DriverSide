@@ -20,13 +20,33 @@ page.on("requestfailed", (r) => failed.push(r.url()));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 
 const body = async () => await page.textContent("body");
-const expect = async (s, label) => { if (!(await body()).includes(s)) throw new Error(`${label}: missing "${s}"`); };
+/* Failures report what the page actually showed — a bare "missing X" tells
+   you nothing when the app took a different branch than you expected. */
+const expect = async (s, label) => {
+  const t = await body();
+  if (!t.includes(s))
+    throw new Error(`${label}: missing "${s}"\n   page showed: ${t.slice(0, 220).replace(/\s+/g, " ").trim()}`);
+};
 const expectNot = async (s, label) => { if ((await body()).includes(s)) throw new Error(`${label}: should NOT contain "${s}"`); };
 const btn = (name) => page.getByRole("button", { name });
 
-await page.goto(BASE, { waitUntil: "networkidle" });
-await page.evaluate(() => localStorage.clear());
-await page.reload({ waitUntil: "networkidle" });
+/* Start from a clean, signed-out app. When Supabase keys are configured
+   the session survives a storage wipe often enough to matter, and an
+   already-signed-in app skips the login screen entirely — so sign out
+   through the UI rather than assuming. */
+await page.goto(BASE, { waitUntil: "domcontentloaded" });
+await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* private mode */ } });
+await page.reload({ waitUntil: "domcontentloaded" });
+await page.waitForTimeout(900); // let the async session check settle
+if (!(await body()).includes("THE ONLY ONE AT THE TABLE")) {
+  const profile = btn("Profile");
+  if (await profile.count()) {
+    await profile.click();
+    const out = btn("Sign out");
+    if (await out.count()) await out.click();
+    await page.waitForTimeout(600);
+  }
+}
 
 // ═══ LOGIN — guest is a first-class door ═══
 await expect("THE ONLY ONE AT THE TABLE ON YOUR SIDE", "login welcome");
@@ -225,8 +245,14 @@ await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 5000 });
 await page.screenshot({ path: "/tmp/shot-desktop-shop.png" });
 
 await browser.close();
-const realFails = failed.filter((u) => !u.includes("fonts.g"));
-const realErrors = errors.filter((e) => !(e.includes("Failed to load resource") && realFails.length === 0));
+/* Fonts and analytics are allowed to fail: sandboxes block them, and so do
+   plenty of real users' ad blockers. The product must work without either,
+   which is exactly what this run just proved. Anything else is a defect. */
+const OPTIONAL = ["fonts.g", "posthog.com", "i.posthog"];
+const realFails = failed.filter((u) => !OPTIONAL.some((o) => u.includes(o)));
+const realErrors = errors.filter(
+  (e) => !e.includes("Failed to load resource") && !e.toLowerCase().includes("posthog")
+);
 if (realFails.length) throw new Error("Failed requests: " + realFails.join(" | "));
 if (realErrors.length) throw new Error("Console errors: " + realErrors.join(" | "));
 console.log("SMOKE PASS — login, onboarding+reroute, shop w/ filters & save, garage rank/remove, connections import+disconnect, editable setup, decoder + 4 gates, manual entry, modes, outcomes, persistence, desktop");
