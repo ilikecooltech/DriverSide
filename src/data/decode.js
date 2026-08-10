@@ -166,14 +166,17 @@ export function buildScripts(deal, market, fmt, pmt) {
         body: `“Your sheet is clean — no add-ons, and the tax math checks out. So this is only about price. Give me your best out-the-door number in writing and I'll compare it against what these are listing for.”`,
       };
 
+  /* The buyer's own pre-approval when they've entered one in Profile,
+     otherwise the CU benchmark. */
+  const pre = deal.preApproval || PRE_APPROVAL;
   let s2;
-  if (deal.apr && deal.term && deal.apr > PRE_APPROVAL.apr) {
+  if (deal.apr && deal.term && deal.apr > pre.apr) {
     const dP = pmt(deal.principal, deal.apr, deal.term);
-    const pP = pmt(deal.principal, PRE_APPROVAL.apr, PRE_APPROVAL.term);
-    const diff = dP * deal.term - pP * PRE_APPROVAL.term;
-    s2 = { t: "Beat my pre-approval", body: `“I'm pre-approved at ${PRE_APPROVAL.apr}% for ${PRE_APPROVAL.term} months. Your ${deal.apr}% for ${deal.term} costs me about ${fmt(diff)} more in interest. If your finance team can beat ${PRE_APPROVAL.apr}%, I'll finance with you. Otherwise I'm using my credit union.”` };
+    const pP = pmt(deal.principal, pre.apr, pre.term);
+    const diff = dP * deal.term - pP * pre.term;
+    s2 = { t: "Beat my pre-approval", body: `“I'm pre-approved at ${pre.apr}% for ${pre.term} months. Your ${deal.apr}% for ${deal.term} costs me about ${fmt(diff)} more in interest. If your finance team can beat ${pre.apr}%, I'll finance with you. Otherwise I'm using my credit union.”` };
   } else {
-    s2 = { t: "Beat my pre-approval", body: `“I'm pre-approved at ${PRE_APPROVAL.apr}% for ${PRE_APPROVAL.term} months with my credit union. If your finance team can beat it, I'll finance with you — show me the buy rate, not just a payment.”` };
+    s2 = { t: "Beat my pre-approval", body: `“I'm pre-approved at ${pre.apr}% for ${pre.term} months with my credit union. If your finance team can beat it, I'll finance with you — show me the buy rate, not just a payment.”` };
   }
 
   const s3 = {

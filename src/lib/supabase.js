@@ -13,7 +13,18 @@ export const authConfigured = Boolean(supabase);
 
 export async function signInWithProvider(provider) {
   if (!supabase) return { simulated: true };
-  return supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
+  return supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: window.location.origin },
+  });
+}
+
+/* Fires on the OAuth/magic-link return trip so the app can pick up the
+   session without a manual refresh. */
+export function onAuthChange(cb) {
+  if (!supabase) return () => {};
+  const { data } = supabase.auth.onAuthStateChange((_e, session) => cb(session));
+  return () => data?.subscription?.unsubscribe();
 }
 
 export async function signInWithEmail(email) {

@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { C, mono, heading, sans } from "./theme.js";
-import { MOCK_DEAL, GARAGE } from "./data/decode.js";
-import { useDesktop } from "./components/ui.jsx";
+import { MOCK_DEAL } from "./data/decode.js";
+import { toGarageItem } from "./data/shopping.js";
+import { IMPORTS, connectorName } from "./data/connections.js";
+import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
-import { getSession, signOut, authConfigured } from "./lib/supabase.js";
+import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
+import { useDesktop } from "./components/ui.jsx";
 import { Login } from "./components/Login.jsx";
 import { Onboarding } from "./components/Onboarding.jsx";
+import { Shop } from "./components/Shop.jsx";
+import { Garage } from "./components/Garage.jsx";
 import { CaptureFlow } from "./components/CaptureFlow.jsx";
 import { ManualEntry } from "./components/ManualEntry.jsx";
 import { Decoder } from "./components/Decoder.jsx";
@@ -13,33 +18,53 @@ import { Paywall } from "./components/Paywall.jsx";
 import { ModeSwitch, PrepMode, TableMode } from "./components/Modes.jsx";
 import { Walked, Receipt, FreshStart } from "./components/Outcomes.jsx";
 import { Profile } from "./components/Profile.jsx";
-import { Garage } from "./components/Garage.jsx";
 
-/* App shell: auth -> three tabs -> deal flow (capture/manual/decoder/
-   paywall/modes/outcomes) + profile. Monetization gates per
-   docs/monetization.md; analytics events per CLAUDE.md success metrics. */
+/* Three stages, in the order a buyer actually moves through them:
+     Shop    — match and value against their stated goal
+     Garage  — the shortlist, their ranking, from every source
+     Dealer  — the decoder, the modes, and how it ended
+   Profile lives in the top bar, reachable from anywhere. */
+
+const DEFAULT_SETUP = {
+  zip: "77471", radius: 100,
+  apr: 7.2, term: 60,
+  tradeCar: "", tradeValue: 0, tradePayoff: 0,
+};
 
 const CONTEXT = {
-  goal: "YOUR GOAL", deal: "DEAL DECODER", garage: "GARAGE",
-  modes: "MODE", prep: "PREP MODE · TONIGHT", table: "TABLE MODE · ONE HAND",
-  walked: "WATCHING · DAY 2", receipt: "SIGNED · THE RECEIPT", freshstart: "FRESH START · YOUR PLAN",
+  shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER",
+  capture: "AT THE DEALER", manual: "MANUAL ENTRY", decoder: "DEAL DECODER",
+  paywall: "DEAL PASS", modes: "MODE", prep: "PREP MODE · TONIGHT",
+  table: "TABLE MODE · ONE HAND", walked: "WATCHING · DAY 2",
+  receipt: "SIGNED · THE RECEIPT", freshstart: "FRESH START · YOUR PLAN",
 };
 
 export default function App() {
-  const [auth, setAuth] = useState(null); // null | 'guest' | 'account'
+  const persisted = typeof window !== "undefined" ? loadState() : {};
+
+  const [auth, setAuth] = useState(null);
   const [userName, setUserName] = useState(null);
-  const [tab, setTab] = useState("goal");
+  const [booted, setBooted] = useState(false);
+
+  const [onboarded, setOnboarded] = useState(Boolean(persisted.archetypeKey));
+  const [archetype, setArchetype] = useState(persisted.archetype || null);
+  const [setup, setSetup] = useState({ ...DEFAULT_SETUP, ...(persisted.setup || {}) });
+  const [cars, setCars] = useState(persisted.cars || []);
+  const [connections, setConnections] = useState(persisted.connections || {});
+
+  const [tab, setTab] = useState("shop");
   const [showProfile, setShowProfile] = useState(false);
-  const [archetype, setArchetype] = useState(null);
+  const [editingGoal, setEditingGoal] = useState(false);
 
   const [dealView, setDealView] = useState("capture");
   const [deal, setDeal] = useState(null);
-  const [cars, setCars] = useState(GARAGE);
-  const [median, setMedian] = useState(null); // shared with modes/outcomes
+  const [median, setMedian] = useState(null);
   const [mode, setMode] = useState("prep");
   const [decodeCount, setDecodeCount] = useState(0);
-  const [hasPass, setHasPass] = useState(false);
+  const [hasPass, setHasPass] = useState(Boolean(persisted.hasPass));
   const [gate, setGate] = useState({ context: "scripts", back: "decoder", after: null });
+
+  const desktop = useDesktop();
 
   useEffect(() => {
     initAnalytics();
@@ -49,8 +74,22 @@ export default function App() {
         setUserName(s.user.email?.split("@")[0] || null);
         identify(s.user.id, { email: s.user.email });
       }
+      setBooted(true);
+    });
+    // Catches the OAuth / magic-link return trip.
+    return onAuthChange((session) => {
+      if (session?.user) {
+        setAuth("account");
+        setUserName(session.user.email?.split("@")[0] || null);
+        identify(session.user.id, { email: session.user.email });
+      }
     });
   }, []);
+
+  // Everything the buyer builds survives a refresh.
+  useEffect(() => {
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, hasPass });
+  }, [archetype, setup, cars, connections, hasPass]);
 
   const handleAuth = (kind) => {
     setAuth(kind);
@@ -60,76 +99,144 @@ export default function App() {
   const handleSignOut = async () => {
     await signOut();
     resetIdentity();
-    setAuth(null); setShowProfile(false); setTab("goal");
-    setDeal(null); setDealView("capture"); setDecodeCount(0); setHasPass(false);
+    clearState();
+    setAuth(null); setShowProfile(false); setTab("shop");
+    setOnboarded(false); setArchetype(null); setCars([]); setConnections({});
+    setSetup(DEFAULT_SETUP); setDeal(null); setDealView("capture");
+    setDecodeCount(0); setHasPass(false);
   };
 
+  /* ---- garage ---- */
+  const addCar = (item, src) => {
+    const car = item.title ? item : toGarageItem(item, src);
+    setCars((prev) => (prev.some((c) => c.id === car.id) ? prev : [...prev, car]));
+    track("vehicle_saved", { vehicle: car.title, price: car.price, source: car.src });
+  };
+  const removeCar = (id) => setCars((prev) => prev.filter((c) => c.id !== id));
+  const rankCar = (from, to) =>
+    setCars((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
+      track("garage_reranked", { from, to });
+      return next;
+    });
+
+  /* ---- connections ---- */
+  const connect = (id) => {
+    setConnections((c) => ({ ...c, [id]: true }));
+    const imported = (IMPORTS[id] || []).map((v) => toGarageItem(v, connectorName(id).toUpperCase()));
+    setCars((prev) => {
+      const have = new Set(prev.map((c) => c.id));
+      return [...prev, ...imported.filter((c) => !have.has(c.id))];
+    });
+    track("account_connected", { connector: id, imported: imported.length });
+  };
+  const disconnect = (id) => {
+    setConnections((c) => ({ ...c, [id]: false }));
+    const name = connectorName(id).toUpperCase();
+    setCars((prev) => prev.filter((c) => c.src !== name));
+    track("account_disconnected", { connector: id });
+  };
+
+  /* ---- deal flow ---- */
   const openPaywall = (context, back, after = null) => {
     setGate({ context, back, after });
     setDealView("paywall");
     track("gate_hit", { context });
     track("paywall_viewed", { context, leverage: deal ? deal.junkTotal + deal.taxError : null });
   };
-
   const startDecode = (d) => {
+    const withPre = { ...d, preApproval: { apr: setup.apr, term: setup.term } };
     const isRedecode = deal && d.vehicle === deal.vehicle;
-    setDeal(d);
+    setDeal(withPre);
     setDecodeCount((n) => n + 1);
     setDealView("decoder");
     track(isRedecode ? "quote_redecoded" : "quote_decoded", {
       source: d === MOCK_DEAL ? "demo" : "manual",
-      vehicle: d.vehicle,
-      leverage: d.junkTotal + d.taxError,
-      has_trade: d.trade.offer > 0,
-      underwater: d.negEq > 0,
+      vehicle: d.vehicle, leverage: d.junkTotal + d.taxError,
+      has_trade: d.trade.offer > 0, underwater: d.negEq > 0,
     });
   };
-
   const requestNewQuote = () => {
     if (decodeCount >= 1 && !hasPass) openPaywall("second-decode", dealView, "capture");
     else setDealView("capture");
   };
-
   const goOutcome = (k) => {
     setDealView(k);
     track(k === "walked" ? "outcome_walked" : "outcome_signed", { vehicle: deal?.vehicle });
   };
 
   const leverage = deal ? deal.junkTotal + deal.taxError : null;
-  const dv = tab === "deal" ? dealView : tab;
+  const archetypeKey = archetype?.key || null;
 
+  /* ---- gates before the main app ---- */
   if (!auth)
+    return <Shell desktop={desktop}><Login onAuth={handleAuth} /></Shell>;
+
+  if (!onboarded || editingGoal)
     return (
-      <Shell>
-        <Login onAuth={handleAuth} />
+      <Shell desktop={desktop} context="YOUR GOAL">
+        <Onboarding
+          onConfirm={(arch, key) => {
+            setArchetype({ ...arch, key });
+            setOnboarded(true);
+            setEditingGoal(false);
+            setTab("shop");
+            track("onboarding_completed", { archetype: arch.name });
+          }}
+        />
       </Shell>
     );
 
+  const dv = tab === "dealer" ? dealView : tab;
+
   return (
     <Shell
+      desktop={desktop}
       masthead={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {tab === "deal" && dealView === "decoder" && (
+          {tab === "dealer" && dealView === "decoder" && (
             <>
               <button onClick={requestNewQuote} style={mastBtn}>+ NEW QUOTE</button>
               <button onClick={() => { setDealView("modes"); track("mode_switch_opened"); }} style={mastBtn}>MODES</button>
             </>
           )}
-          {!(tab === "deal" && dealView === "decoder") && (
+          {!(tab === "dealer" && dealView === "decoder") && (
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>
-              {CONTEXT[dv] || CONTEXT[tab]}{hasPass && tab === "deal" ? " · DEAL PASS" : ""}
+              {CONTEXT[dv] || ""}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
             </span>
           )}
-          <button onClick={() => setShowProfile(true)} aria-label="Profile" style={{ width: 28, height: 28, border: `1.5px solid ${C.ink}`, background: C.card, fontFamily: heading, fontWeight: 600, fontSize: 13, cursor: "pointer", color: C.ink, padding: 0 }}>
-            {auth === "guest" ? "G" : (userName || "D")[0].toUpperCase()}
+          <button
+            onClick={() => setShowProfile(!showProfile)}
+            aria-label="Profile"
+            style={{
+              display: "flex", alignItems: "center", gap: 6, minHeight: 30, padding: "0 8px",
+              border: `1.5px solid ${showProfile ? C.accent : C.ink}`,
+              background: showProfile ? C.accentTint : C.card,
+              cursor: "pointer", color: C.ink,
+            }}
+          >
+            <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 13 }}>
+              {auth === "guest" ? "G" : (userName || "D")[0].toUpperCase()}
+            </span>
+            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>PROFILE</span>
           </button>
         </div>
       }
       tabs={
         <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-          {[["goal", "Your Goal"], ["deal", "Deal Decoder"], ["garage", "Garage"]].map(([k, label]) => (
-            <button key={k} onClick={() => { setTab(k); setShowProfile(false); }} aria-current={tab === k ? "page" : undefined}
-              style={{ flex: 1, minHeight: 42, cursor: "pointer", fontSize: 12.5, fontWeight: 700, border: "none", borderBottom: tab === k ? `2px solid ${C.ink}` : "2px solid transparent", background: "none", color: tab === k ? C.ink : C.inkSoft }}>
+          {[["shop", "Shop"], ["garage", `Garage${cars.length ? ` (${cars.length})` : ""}`], ["dealer", "At the Dealer"]].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => { setTab(k); setShowProfile(false); }}
+              aria-current={tab === k && !showProfile ? "page" : undefined}
+              style={{
+                flex: 1, minHeight: 42, cursor: "pointer", fontSize: 12.5, fontWeight: 700,
+                border: "none", borderBottom: tab === k && !showProfile ? `2px solid ${C.ink}` : "2px solid transparent",
+                background: "none", color: tab === k && !showProfile ? C.ink : C.inkSoft,
+              }}
+            >
               {label}
             </button>
           ))}
@@ -139,16 +246,33 @@ export default function App() {
       {showProfile ? (
         <Profile
           name={userName} isGuest={auth === "guest"}
-          archetypeName={archetype?.name} deal={deal}
+          archetypeName={archetype?.name} setup={setup} connections={connections}
+          onConnect={connect} onDisconnect={disconnect}
+          onSaveSetup={(s) => { setSetup(s); track("setup_updated"); }}
+          onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
           onSignOut={handleSignOut} onBack={() => setShowProfile(false)}
         />
       ) : (
         <>
-          {tab === "goal" && (
-            <Onboarding onConfirm={(arch) => { setArchetype(arch); setTab("deal"); track("onboarding_completed", { archetype: arch.name }); }} />
+          {tab === "shop" && (
+            <Shop
+              archetypeKey={archetypeKey} archetypeName={archetype?.name}
+              setup={setup} savedIds={cars.map((c) => c.id)}
+              onSave={(v) => addCar(v, "SHOPPED")}
+              onOpenGoal={() => setEditingGoal(true)}
+            />
           )}
 
-          {tab === "deal" && dealView === "capture" && (
+          {tab === "garage" && (
+            <Garage
+              cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
+              onAdd={addCar} onRemove={removeCar} onRank={rankCar}
+              onShop={() => setTab("shop")}
+              onOpenDecode={() => { setTab("dealer"); setDealView(deal ? "decoder" : "capture"); }}
+            />
+          )}
+
+          {tab === "dealer" && dealView === "capture" && (
             <CaptureFlow
               onSeeDecode={() => startDecode(MOCK_DEAL)}
               onManual={() => {
@@ -157,10 +281,10 @@ export default function App() {
               }}
             />
           )}
-          {tab === "deal" && dealView === "manual" && (
+          {tab === "dealer" && dealView === "manual" && (
             <ManualEntry onDecode={startDecode} onBack={() => setDealView("capture")} />
           )}
-          {tab === "deal" && dealView === "decoder" && deal && (
+          {tab === "dealer" && dealView === "decoder" && deal && (
             <Decoder
               deal={deal} hasPass={hasPass}
               onGate={(ctx) => openPaywall(ctx, "decoder")}
@@ -168,10 +292,10 @@ export default function App() {
               onFreshStart={() => { setDealView("freshstart"); track("freshstart_viewed", { gap: deal.negEq }); }}
             />
           )}
-          {tab === "deal" && dealView === "decoder" && !deal && (
+          {tab === "dealer" && dealView === "decoder" && !deal && (
             <CaptureFlow onSeeDecode={() => startDecode(MOCK_DEAL)} onManual={() => setDealView("manual")} />
           )}
-          {tab === "deal" && dealView === "paywall" && (
+          {tab === "dealer" && dealView === "paywall" && (
             <Paywall
               leverage={leverage} context={gate.context}
               onBuy={() => {
@@ -182,38 +306,25 @@ export default function App() {
               onClose={() => setDealView(gate.back || (deal ? "decoder" : "capture"))}
             />
           )}
-          {tab === "deal" && dealView === "modes" && deal && (
+          {tab === "dealer" && dealView === "modes" && deal && (
             <ModeSwitch mode={mode} setMode={setMode}
               onOpen={(m) => { setDealView(m); track("mode_opened", { mode: m }); }}
-              onOutcome={goOutcome}
-            />
+              onOutcome={goOutcome} />
           )}
-          {tab === "deal" && dealView === "prep" && deal && (
+          {tab === "dealer" && dealView === "prep" && deal && (
             <PrepMode deal={deal} median={median} onTable={() => { setMode("table"); setDealView("table"); track("mode_opened", { mode: "table" }); }} />
           )}
-          {tab === "deal" && dealView === "table" && deal && (
+          {tab === "dealer" && dealView === "table" && deal && (
             <TableMode deal={deal} median={median} onFullDecode={() => setDealView("decoder")} />
           )}
-          {tab === "deal" && dealView === "walked" && deal && (
+          {tab === "dealer" && dealView === "walked" && deal && (
             <Walked deal={deal} median={median} onGarage={() => { setTab("garage"); setDealView("decoder"); }} />
           )}
-          {tab === "deal" && dealView === "receipt" && deal && (
+          {tab === "dealer" && dealView === "receipt" && deal && (
             <Receipt deal={deal} median={median} onDone={() => { track("refi_watch_set"); setShowProfile(true); setDealView("decoder"); }} />
           )}
-          {tab === "deal" && dealView === "freshstart" && deal && (
+          {tab === "dealer" && dealView === "freshstart" && deal && (
             <FreshStart deal={deal} onStart={() => { track("freshstart_plan_started", { gap: deal.negEq }); setTab("garage"); setDealView("decoder"); }} />
-          )}
-
-          {tab === "garage" && (
-            <Garage
-              cars={cars}
-              onAdd={(car) => {
-                setCars([...cars, car].sort((a, b) => b.fit - a.fit));
-                track("vehicle_saved", { vehicle: car.car, price: car.price, under_market: car.underMarket });
-              }}
-              archetypeName={archetype ? archetype.name : "Family Hauler"}
-              onOpenDecode={() => setTab("deal")}
-            />
           )}
         </>
       )}
@@ -223,14 +334,15 @@ export default function App() {
 
 const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
 
-function Shell({ masthead, tabs, children }) {
-  const desktop = useDesktop();
+function Shell({ masthead, tabs, context, children, desktop }) {
   return (
     <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
       <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none" }}>
         <div style={{ padding: "14px 16px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.line}` }}>
           <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em" }}>DriverSide</span>
-          {masthead || <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>SIGN IN</span>}
+          {masthead || (
+            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>{context || "SIGN IN"}</span>
+          )}
         </div>
         {tabs}
         {children}

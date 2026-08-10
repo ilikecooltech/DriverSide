@@ -15,7 +15,8 @@ export function Onboarding({ onConfirm }) {
 
   const done = step >= QUESTIONS.length;
   const q = QUESTIONS[Math.min(step, 4)];
-  const arch = ARCHETYPES[scoreArchetype(answers)];
+  const archKey = scoreArchetype(answers);
+  const arch = ARCHETYPES[archKey];
 
   const pick = (v) => {
     const next = { ...answers, [q.id]: v };
@@ -98,7 +99,7 @@ export function Onboarding({ onConfirm }) {
         ))}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto", paddingTop: 18 }}>
-        <PrimaryBtn onClick={() => onConfirm(arch)} height={50}>SOUNDS LIKE ME →</PrimaryBtn>
+        <PrimaryBtn onClick={() => onConfirm(arch, archKey)} height={50}>SOUNDS LIKE ME →</PrimaryBtn>
         <GhostBtn onClick={() => setEditing(true)}>Not quite — change an answer</GhostBtn>
       </div>
     </div>

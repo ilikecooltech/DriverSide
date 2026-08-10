@@ -1,10 +1,18 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { C, mono, heading, fmt, stripes } from "../theme.js";
+import { matchScore, profileFor, segmentMedian, valueLabel, toGarageItem } from "../data/shopping.js";
 import { Kicker, PrimaryBtn, GhostBtn, useDesktop } from "./ui.jsx";
 
-/* Garage — real add-vehicle flow. Saving a car runs a live market check
-   and grades the price against the median; the fit score is a simple
-   market-value heuristic until goal-based scoring ships. */
+/* Garage — everything the buyer is considering, from any source, in one
+   ranked list. Rank is the buyer's own call (dropdown); match is ours.
+   Cars arrive from Shop, from a connected marketplace, or by hand. */
+
+export function marketFit(price, median) {
+  if (!median) return 70;
+  const pct = ((median - price) / median) * 100;
+  const fit = pct >= 0 ? 85 + pct * 1.3 : 85 + pct * 2.2;
+  return Math.max(40, Math.min(98, Math.round(fit)));
+}
 
 const ADD_FIELDS = [
   { k: "year", label: "Year", ph: "2021", max: 4 },
@@ -13,59 +21,16 @@ const ADD_FIELDS = [
   { k: "trim", label: "Trim (optional)", ph: "Premium" },
   { k: "price", label: "Listed price", ph: "26500", mono: true },
   { k: "miles", label: "Miles (optional)", ph: "34000", mono: true },
-  { k: "zip", label: "ZIP", ph: "77471", max: 5, mono: true },
-  { k: "src", label: "Where you found it (optional)", ph: "CarGurus" },
+  { k: "dealer", label: "Dealer or seller (optional)", ph: "Katy Subaru" },
 ];
-
-/* fit heuristic calibrated to the demo cars: at-market ≈ 85, each %
-   over market costs ~2.2 pts, each % under adds ~1.3 */
-export function marketFit(price, median) {
-  if (!median) return 70;
-  const pct = ((median - price) / median) * 100;
-  const fit = pct >= 0 ? 85 + pct * 1.3 : 85 + pct * 2.2;
-  return Math.max(40, Math.min(98, Math.round(fit)));
-}
 
 function AddVehicle({ onAdd, onCancel }) {
   const [v, setV] = useState({});
-  const [busy, setBusy] = useState(false);
   const ready = /^(19|20)\d{2}$/.test(v.year || "") && v.make && v.model && Number(v.price) > 0;
-
-  const save = async () => {
-    if (!ready || busy) return;
-    setBusy(true);
-    let market = null;
-    try {
-      const q = new URLSearchParams({ zip: v.zip || "77471", radius: "100", year: v.year, make: v.make, model: v.model, trim: v.trim || "" });
-      const r = await fetch(`/api/market?${q}`);
-      const d = r.ok ? await r.json() : null;
-      if (d && typeof d.median === "number") market = d;
-    } catch { /* offline is fine */ }
-
-    const price = Number(v.price);
-    const delta = market ? price - market.median : null;
-    const note = market
-      ? delta > 0
-        ? `≈${fmt(delta)} over market · median ${fmt(market.median)} (${market.count} comps)`
-        : `${fmt(Math.abs(delta))} under market · median ${fmt(market.median)} (${market.count} comps)`
-      : "No live market data yet — we'll keep checking";
-
-    onAdd({
-      car: [v.year, v.make, v.model, v.trim].filter(Boolean).join(" "),
-      price,
-      src: (v.src || "SAVED LINK").toUpperCase(),
-      fit: marketFit(price, market?.median),
-      miles: v.miles ? `${Math.round(Number(v.miles) / 1000)}k mi` : "",
-      note,
-      drop: null,
-      dol: "just saved",
-      underMarket: delta !== null && delta < 0,
-    });
-  };
 
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 12 }}>
-      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>SAVE A CAR — WE'LL PRICE IT AGAINST THE MARKET</Kicker>
+      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>ADD A CAR BY HAND</Kicker>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
         {ADD_FIELDS.map((f) => (
           <div key={f.k}>
@@ -81,22 +46,30 @@ function AddVehicle({ onAdd, onCancel }) {
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <GhostBtn onClick={onCancel} style={{ width: "auto", flex: 1 }}>Cancel</GhostBtn>
-        <PrimaryBtn onClick={save} style={{ flex: 2, width: "auto", opacity: ready && !busy ? 1 : 0.45 }}>
-          {busy ? "CHECKING THE MARKET…" : "SAVE TO GARAGE"}
+        <PrimaryBtn
+          onClick={() => ready && onAdd(toGarageItem({
+            year: Number(v.year), make: v.make, model: v.model, trim: v.trim,
+            price: Number(v.price), miles: Number(v.miles) || 0, dealer: v.dealer,
+          }, "ADDED BY HAND"))}
+          style={{ flex: 2, width: "auto", opacity: ready ? 1 : 0.45 }}
+        >
+          SAVE TO GARAGE
         </PrimaryBtn>
       </div>
     </div>
   );
 }
 
-export function Garage({ cars, onAdd, archetypeName = "Family Hauler", onOpenDecode }) {
+export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop }) {
   const [adding, setAdding] = useState(false);
   const desktop = useDesktop();
+  const profile = useMemo(() => profileFor(archetypeKey), [archetypeKey]);
+  const median = useMemo(() => segmentMedian(cars), [cars]);
 
-  const handleAdd = (car) => {
-    onAdd(car);
-    setAdding(false);
-  };
+  const scored = useMemo(
+    () => cars.map((c) => ({ ...c, match: matchScore(c, profile, median) })),
+    [cars, profile, median]
+  );
 
   if (cars.length === 0 && !adding)
     return (
@@ -105,15 +78,15 @@ export function Garage({ cars, onAdd, archetypeName = "Family Hauler", onOpenDec
           Every site you browse.<br />One garage. One score.
         </h1>
         <div style={{ fontSize: 14, lineHeight: 1.55, color: C.inkSoft }}>
-          Save any listing — AutoTrader, CarGurus, a dealer's own site — and we normalize it, score it against your{" "}
-          <b style={{ color: C.ink }}>{archetypeName}</b> goal, and watch it for price drops.
+          Save from Shop, connect the marketplaces you already use, or add a car by hand. We normalize all of it, score it
+          against your <b style={{ color: C.ink }}>{archetypeName || "goal"}</b>, and watch for price drops.
         </div>
         <div style={{ border: `1px dashed ${C.dash}`, padding: "18px 16px", background: stripes }}>
           <Kicker style={{ letterSpacing: "0.1em", marginBottom: 10 }}>YOUR FIRST CAR GOES HERE</Kicker>
           {[
-            ["1", "Find a car anywhere you already browse"],
-            ["2", "Share it to DriverSide — share sheet or browser extension"],
-            ["3", "We score it 0–100 for your goal and track the price"],
+            ["1", "Shop by your goal — save anything that fits"],
+            ["2", "Or connect AutoTrader, CarGurus, Carvana in Profile"],
+            ["3", "Rank them yourself; we price and watch them all"],
           ].map(([n, t]) => (
             <div key={n} style={{ display: "flex", gap: 12, fontSize: 13, lineHeight: 1.5, color: C.ink, marginBottom: n === "3" ? 0 : 8 }}>
               <span style={{ fontFamily: mono, fontWeight: 800, color: C.accentText }}>{n}</span>
@@ -121,59 +94,98 @@ export function Garage({ cars, onAdd, archetypeName = "Family Hauler", onOpenDec
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12.5, color: C.inkSoft }}>
-          Meanwhile, we're watching for <b style={{ color: C.ink }}>safety-first compact SUVs under $30k</b> near 77471 — your goal, working even while the garage is empty.
-        </div>
-        <PrimaryBtn onClick={() => setAdding(true)} height={52} style={{ fontSize: 18, marginTop: "auto" }}>SAVE YOUR FIRST CAR</PrimaryBtn>
+        <PrimaryBtn onClick={onShop} height={52} style={{ fontSize: 18, marginTop: "auto" }}>SHOP FOR MY GOAL →</PrimaryBtn>
+        <GhostBtn onClick={() => setAdding(true)}>Add a car by hand instead</GhostBtn>
       </div>
     );
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
-      <Kicker style={{ letterSpacing: "0.12em", marginBottom: 10 }}>
-        {cars.length} SAVED · SCORED FOR {archetypeName.toUpperCase()} · SORTED BY FIT
-      </Kicker>
-      {adding && <AddVehicle onAdd={handleAdd} onCancel={() => setAdding(false)} />}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 8 }}>
+        <Kicker style={{ letterSpacing: "0.12em" }}>
+          {cars.length} SAVED · SCORED FOR {(archetypeName || "YOUR GOAL").toUpperCase()}
+        </Kicker>
+        <span style={{ fontFamily: mono, fontSize: 9, color: C.inkSoft }}>YOUR ORDER</span>
+      </div>
+
+      {adding && <AddVehicle onAdd={(c) => { onAdd(c); setAdding(false); }} onCancel={() => setAdding(false)} />}
+
       <div style={{ display: "grid", gridTemplateColumns: desktop ? "1fr 1fr" : "1fr", gap: 12 }}>
-        {cars.map((g, ix) => (
-          <div key={g.car + ix} style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, position: "relative" }}>
-            {ix === 0 && cars.length > 1 && (
-              <div style={{ position: "absolute", top: -1, right: -1, background: C.green, color: "#fff", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", padding: "4px 8px" }}>BEST FIT</div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-              <div>
-                <div style={{ fontSize: 15.5, fontWeight: 700 }}>{g.car}</div>
-                <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
-                  {g.miles ? `${g.miles} · ` : ""}<span style={{ fontFamily: mono, fontSize: 10, border: `1px solid ${C.line}`, padding: "1px 5px" }}>{g.src}</span>
+        {scored.map((g, ix) => {
+          const val = valueLabel(g.price, median);
+          const tone = val.tone === "good" ? C.green : val.tone === "warn" ? C.amber : C.inkSoft;
+          return (
+            <div key={g.id} style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15.5, fontWeight: 700 }}>{g.title}</div>
+                  <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
+                    {g.miles ? `${Math.round(g.miles / 1000)}k mi · ` : ""}
+                    <span style={{ fontFamily: mono, fontSize: 10, border: `1px solid ${C.line}`, padding: "1px 5px" }}>{g.src}</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 800 }}>{fmt(g.price)}</div>
+                  <div style={{ fontFamily: mono, fontSize: 11, fontWeight: 800, color: g.match >= 80 ? C.green : C.amber }}>
+                    MATCH {g.match}/100
+                  </div>
                 </div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 800 }}>{fmt(g.price)}</div>
-                <div style={{ fontFamily: mono, fontSize: 11, fontWeight: 800, color: g.fit >= 85 ? C.green : C.amber }}>FIT {g.fit}/100</div>
+              <div style={{ height: 4, background: C.line, margin: "10px 0 8px" }}>
+                <div style={{ width: `${g.match}%`, height: 4, background: g.match >= 80 ? C.green : C.amber }} />
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5 }}>
+                <span style={{ color: tone, fontWeight: 700 }}>{val.text}</span>
+                {g.drop && (
+                  <span style={{ fontFamily: mono, fontSize: 10.5, color: C.green, fontWeight: 700, background: C.greenBg, padding: "2px 6px" }}>{g.drop}</span>
+                )}
+                <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, marginLeft: "auto" }}>
+                  {g.days ? `${g.days} days on lot` : ""}
+                </span>
+              </div>
+              {g.dealer && <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{g.dealer}</div>}
+
+              {/* buyer's own ranking + remove */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, borderTop: `1px dashed ${C.line}`, paddingTop: 10 }}>
+                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft }} htmlFor={`rank-${g.id}`}>
+                  MY RANK
+                </label>
+                <select
+                  id={`rank-${g.id}`}
+                  value={ix + 1}
+                  onChange={(e) => onRank(ix, Number(e.target.value) - 1)}
+                  style={{ minHeight: 36, border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.ink, padding: "0 6px" }}
+                >
+                  {cars.map((_, i) => (
+                    <option key={i} value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+                {g.decoded && (
+                  <button onClick={onOpenDecode} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    QUOTE DECODED →
+                  </button>
+                )}
+                <button
+                  onClick={() => onRemove(g.id)}
+                  style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}
+                >
+                  Remove
+                </button>
               </div>
             </div>
-            <div style={{ height: 4, background: C.line, margin: "10px 0 8px" }}>
-              <div style={{ width: `${g.fit}%`, height: 4, background: g.fit >= 85 ? C.green : C.amber }} />
-            </div>
-            <div style={{ fontSize: 12.5, color: C.inkSoft }}>{g.note}</div>
-            <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
-              <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft }}>{g.dol}</span>
-              {g.drop && (
-                <span style={{ fontFamily: mono, fontSize: 10.5, color: C.green, fontWeight: 700, background: C.greenBg, padding: "2px 6px" }}>{g.drop}</span>
-              )}
-              {g.decoded && (
-                <button onClick={onOpenDecode} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                  QUOTE DECODED →
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
       {!adding && (
-        <button onClick={() => setAdding(true)} style={{ width: "100%", border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer", marginTop: 12 }}>
-          + Save another from any site
-        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button onClick={onShop} style={{ flex: 1, border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
+            + Shop for more
+          </button>
+          <button onClick={() => setAdding(true)} style={{ flex: 1, border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
+            + Add by hand
+          </button>
+        </div>
       )}
     </div>
   );
