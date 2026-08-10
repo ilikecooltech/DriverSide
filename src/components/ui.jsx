@@ -1,6 +1,21 @@
 import React from "react";
 import { C, mono, heading } from "../theme.js";
 
+/* Desktop breakpoint hook — the app is mobile-first; ≥900px widens the
+   shell and switches the Garage to a two-column grid. */
+export function useDesktop() {
+  const [desktop, setDesktop] = React.useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
+  );
+  React.useEffect(() => {
+    const mq = window.matchMedia("(min-width: 900px)");
+    const fn = (e) => setDesktop(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
+  return desktop;
+}
+
 /* Verdict chip — always carries text, never color alone. */
 export function Chip({ verdict }) {
   const m = {

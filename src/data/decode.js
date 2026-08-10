@@ -70,7 +70,8 @@ export function buildDeal(input) {
     zip: input.zip || "77471",
     asking,
     daysOnLot: input.daysOnLot || null,
-    query: parseVehicle(input.vehicle),
+    /* structured query beats free-text parsing (multi-word makes/models) */
+    query: input.query || parseVehicle(input.vehicle),
     marketEst: Number(input.marketEst) || null,
     linesFlag, linesCheck, fairRows,
     junkTotal, taxError, expectedTax, taxCharged,

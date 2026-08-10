@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { C, mono, heading, fmt, pmt, reducedMotion } from "../theme.js";
 import { MARKET_FALLBACK, STEP_BOUNDS, dealerMath, buildScripts } from "../data/decode.js";
-import { Kicker, DecodeLine, StepperRow, PrimaryBtn } from "./ui.jsx";
+import { Kicker, DecodeLine, StepperRow, PrimaryBtn, useDesktop } from "./ui.jsx";
 
 /* Deal Decoder, Direction A: sticky verdict strip + anchor nav.
    Renders ANY normalized deal (mock demo or manual entry). Market stats
@@ -75,10 +75,12 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
 
   const chipBtn = { flex: 1, minHeight: 34, border: `1px solid ${C.line}`, background: C.card, fontSize: 11, fontWeight: 700, color: C.ink, cursor: "pointer", padding: "0 2px" };
   const verdictLine = levLo + overMarket > 0 ? "Not at this number — but you have real room." : "This sheet is clean. Focus on price and financing.";
+  const desktop = useDesktop();
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-      <div ref={boxRef} style={{ flex: 1, overflowY: "auto", position: "relative", padding: "0 16px", minHeight: 0 }}>
+      {/* desktop caps the reading column; mobile is full-bleed */}
+      <div ref={boxRef} style={{ flex: 1, overflowY: "auto", position: "relative", padding: desktop ? "0 16px" : "0 16px", minHeight: 0, width: desktop ? 640 : "auto", alignSelf: desktop ? "center" : "stretch", boxSizing: "border-box", maxWidth: "100%" }}>
         {/* sticky verdict strip */}
         <div style={{ position: "sticky", top: 0, zIndex: 5, background: C.paper, margin: "0 -16px", padding: "10px 16px 8px", borderBottom: `1px solid ${C.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>

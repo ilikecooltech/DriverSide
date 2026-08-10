@@ -84,7 +84,10 @@ const fill = async (label, val) => {
   const el = page.locator(`text=${label}`).locator("xpath=following-sibling::input");
   await el.fill(val);
 };
-await fill("Vehicle (year make model trim)", "2022 Toyota RAV4 XLE");
+await fill("Year", "2022");
+await fill("Make", "Toyota");
+await fill("Model", "RAV4");
+await fill("Trim (optional)", "XLE");
 await fill("ZIP", "77471");
 await fill("Vehicle price", "27995");
 await fill("Doc fee", "499");
@@ -174,11 +177,35 @@ await expect("✓ CONNECTED", "connection toggle");
 await page.getByRole("button", { name: "Sign out" }).click();
 await expect("THE ONLY ONE AT THE TABLE ON YOUR SIDE", "sign out -> login");
 
-// ---- garage still intact (fresh session state)
+// ---- garage: add-vehicle flow (fresh session state)
 await page.getByRole("button", { name: /continue as guest/ }).click();
 await page.getByRole("button", { name: /START DECODING/ }).click();
 await page.getByRole("button", { name: "Garage" }).click();
 await expect("SORTED BY FIT", "garage list");
+await page.getByRole("button", { name: /Save another from any site/ }).click();
+await expect("WE'LL PRICE IT AGAINST THE MARKET", "add-vehicle form");
+const gfill = async (label, val) => {
+  const el = page.locator(`text=${label}`).locator("xpath=following-sibling::input");
+  await el.fill(val);
+};
+await gfill("Year", "2021");
+await gfill("Make", "Subaru");
+await gfill("Model", "Outback");
+await gfill("Listed price", "26500");
+await page.getByRole("button", { name: "SAVE TO GARAGE" }).click();
+await page.waitForSelector("text=2021 Subaru Outback", { timeout: 5000 });
+await expect("4 SAVED", "garage count updated");
+await expect("No live market data yet", "honest no-data note (snapshot mode)");
+await page.screenshot({ path: "/tmp/shot-garage-add.png" });
+
+// ---- desktop layout: widen viewport, garage goes 2-col, app still works
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.waitForTimeout(400);
+await expect("2021 Subaru Outback", "desktop garage renders");
+await page.screenshot({ path: "/tmp/shot-desktop-garage.png" });
+await page.getByRole("button", { name: "Deal Decoder" }).click();
+await expect("Photograph it", "desktop deal tab renders");
+await page.screenshot({ path: "/tmp/shot-desktop-capture.png" });
 
 await browser.close();
 const realFails = failed.filter((u) => !u.includes("fonts.g"));

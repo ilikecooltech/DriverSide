@@ -41,30 +41,43 @@ app.get("/api/market", async (req, res) => {
   }
 
   try {
-    const params = new URLSearchParams({
-      api_key: KEY,
-      car_type: "used",
-      year: String(year),
-      make: String(make),
-      model: String(model),
-      trim: String(trim),
-      zip: String(zip),
-      radius: String(radius),
-      rows: "24",
-      sort_by: "price",
-      sort_order: "asc",
-    });
-    const url = `https://mc-api.marketcheck.com/v2/search/car/active?${params}`;
-    const r = await fetch(url);
+    const query = (withTrim) => {
+      const p = new URLSearchParams({
+        api_key: KEY,
+        car_type: "used",
+        year: String(year),
+        make: String(make),
+        model: String(model),
+        zip: String(zip),
+        radius: String(radius),
+        rows: "24",
+        sort_by: "price",
+        sort_order: "asc",
+      });
+      if (withTrim && trim) p.set("trim", String(trim));
+      return fetch(`https://mc-api.marketcheck.com/v2/search/car/active?${p}`);
+    };
+    // Exact trim first; MarketCheck trim strings over-narrow (a real "EX-L"
+    // may be listed as "EX-L w/Navi"), so zero results widens to all trims.
+    let trimWidened = false;
+    let r = await query(true);
     if (!r.ok) throw new Error(`MarketCheck ${r.status}: ${await r.text()}`);
-    const data = await r.json();
-    const listings = (data.listings || []).filter((l) => l.price > 0);
+    let data = await r.json();
+    let listings = (data.listings || []).filter((l) => l.price > 0);
+    if (!listings.length && trim) {
+      r = await query(false);
+      if (!r.ok) throw new Error(`MarketCheck ${r.status}: ${await r.text()}`);
+      data = await r.json();
+      listings = (data.listings || []).filter((l) => l.price > 0);
+      trimWidened = true;
+    }
     if (!listings.length) {
-      return res.json({ ...SNAPSHOT, note: "No live listings matched — showing snapshot" });
+      return res.json({ source: "none", note: "No live listings matched this vehicle" });
     }
     const prices = listings.map((l) => l.price);
     res.json({
       source: "live",
+      trimWidened,
       zip,
       radius: Number(radius),
       count: data.num_found ?? listings.length,

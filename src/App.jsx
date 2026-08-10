@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { C, mono, heading, sans } from "./theme.js";
-import { MOCK_DEAL } from "./data/decode.js";
+import { MOCK_DEAL, GARAGE } from "./data/decode.js";
+import { useDesktop } from "./components/ui.jsx";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, authConfigured } from "./lib/supabase.js";
 import { Login } from "./components/Login.jsx";
@@ -33,6 +34,7 @@ export default function App() {
 
   const [dealView, setDealView] = useState("capture");
   const [deal, setDeal] = useState(null);
+  const [cars, setCars] = useState(GARAGE);
   const [median, setMedian] = useState(null); // shared with modes/outcomes
   const [mode, setMode] = useState("prep");
   const [decodeCount, setDecodeCount] = useState(0);
@@ -203,7 +205,15 @@ export default function App() {
           )}
 
           {tab === "garage" && (
-            <Garage archetypeName={archetype ? archetype.name : "Family Hauler"} onOpenDecode={() => setTab("deal")} />
+            <Garage
+              cars={cars}
+              onAdd={(car) => {
+                setCars([...cars, car].sort((a, b) => b.fit - a.fit));
+                track("vehicle_saved", { vehicle: car.car, price: car.price, under_market: car.underMarket });
+              }}
+              archetypeName={archetype ? archetype.name : "Family Hauler"}
+              onOpenDecode={() => setTab("deal")}
+            />
           )}
         </>
       )}
@@ -214,9 +224,10 @@ export default function App() {
 const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
 
 function Shell({ masthead, tabs, children }) {
+  const desktop = useDesktop();
   return (
-    <div style={{ background: C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
-      <div style={{ width: "100%", maxWidth: 520, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}` }}>
+    <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
+      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none" }}>
         <div style={{ padding: "14px 16px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.line}` }}>
           <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em" }}>DriverSide</span>
           {masthead || <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>SIGN IN</span>}
