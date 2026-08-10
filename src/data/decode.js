@@ -31,7 +31,10 @@ export function buildDeal(input) {
   const expectedTax = Math.round(TX_TAX * Math.max(0, asking - tradeOffer));
   const taxError = Math.max(0, Math.round(taxCharged - expectedTax));
   const junkTotal = addons.reduce((s, a) => s + Number(a.amt), 0);
-  const negEq = Math.max(0, tradePayoff - tradeOffer);
+  /* Negative equity only rolls into the new loan if the car is actually
+     being traded. A payoff with no trade offer is a car they're keeping,
+     and claiming otherwise inflates the amount financed. */
+  const negEq = tradeOffer > 0 ? Math.max(0, tradePayoff - tradeOffer) : 0;
 
   const linesFlag = addons.map((a) => ({
     name: a.name, amt: Number(a.amt),
@@ -146,10 +149,22 @@ export function buildScripts(deal, market, fmt, pmt) {
   if (deal.taxError > 25) junkBits.push(`a ${fmt(deal.taxError)} tax error`);
   const removeNames = deal.linesFlag.filter((l) => !l.name.startsWith("Sales tax")).map((l) => l.name.toLowerCase());
 
-  const s1 = {
-    t: "Remove the junk",
-    body: `“Before we go further — I need ${removeNames.length ? removeNames.join(", ") + " off this sheet" : "the add-ons off this sheet"}${deal.taxError > 25 ? ", and the tax line re-run on price minus my trade" : ""}. That's ${junkBits.join(" plus ")}. I'm ready to move today on a clean out-the-door number.”`,
-  };
+  /* Build the asks from what this sheet actually contains. A clean sheet
+     gets its own script — the buyer must never read a sentence naming
+     add-ons that aren't there. */
+  const asks = [];
+  if (removeNames.length) asks.push(`${removeNames.join(", ")} off this sheet`);
+  if (deal.taxError > 25) asks.push("the tax line re-run on price minus my trade");
+
+  const s1 = asks.length
+    ? {
+        t: "Remove the junk",
+        body: `“Before we go further — I need ${asks.join(", and ")}. That's ${junkBits.join(" plus ")}. I'm ready to move today on a clean out-the-door number.”`,
+      }
+    : {
+        t: "Remove the junk",
+        body: `“Your sheet is clean — no add-ons, and the tax math checks out. So this is only about price. Give me your best out-the-door number in writing and I'll compare it against what these are listing for.”`,
+      };
 
   let s2;
   if (deal.apr && deal.term && deal.apr > PRE_APPROVAL.apr) {

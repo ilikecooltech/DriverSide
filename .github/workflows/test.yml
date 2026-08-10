@@ -1,0 +1,41 @@
+name: tests
+
+# Auto-deploy is on: a push to main ships to production. This is the gate
+# that stands between a bad commit and a buyer standing in a dealership.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: unit + regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    name: end-to-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      # No MARKETCHECK_API_KEY in CI on purpose: the suite must pass on
+      # snapshot data so tests never depend on a live vendor or spend quota.
+      - run: node server/index.mjs & sleep 3
+      - run: npm run test:e2e
+        env:
+          PLAYWRIGHT_CHROMIUM_DEFAULT: "1"

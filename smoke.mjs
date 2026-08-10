@@ -1,6 +1,18 @@
 import { chromium } from "playwright";
+import { existsSync } from "node:fs";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+/* End-to-end regression suite. Walks the whole product the way a buyer
+   would: sign in, decode, hit every paywall gate, run the modes, land on
+   an outcome. Runs against the built app on :8787.
+   Usage: npm run build && npm run server, then `npm run test:e2e`. */
+
+// Use a preinstalled browser when one is present (sandboxes/CI images),
+// otherwise let Playwright resolve its own download.
+const SANDBOX_CHROMIUM = "/opt/pw-browsers/chromium";
+const browser = await chromium.launch(
+  existsSync(SANDBOX_CHROMIUM) ? { executablePath: SANDBOX_CHROMIUM } : {}
+);
+const BASE = process.env.SMOKE_URL || "http://localhost:8787/";
 const page = await browser.newPage({ viewport: { width: 480, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
@@ -12,7 +24,7 @@ const body = async () => await page.textContent("body");
 const expect = async (s, label) => { if (!(await body()).includes(s)) throw new Error(`${label}: missing "${s}"`); };
 const expectNot = async (s, label) => { if ((await body()).includes(s)) throw new Error(`${label}: should NOT contain "${s}"`); };
 
-await page.goto("http://localhost:8787/", { waitUntil: "networkidle" });
+await page.goto(BASE, { waitUntil: "networkidle" });
 
 // ---- login: welcome -> guest door -> in
 await expect("THE ONLY ONE AT THE TABLE ON YOUR SIDE", "login welcome");

@@ -19,14 +19,21 @@ const WLINES = [
   (target) => `“${fmt(target)} plus tax, title and a fair doc fee — out the door — or I'm walking.”`,
 ];
 
-/* numbers shared by prep + table, derived from the deal + market */
+/* Numbers shared by prep + table, derived from the deal + market.
+   Nothing may exceed the asking price: a target above the sticker is a
+   worse deal than walking in cold, and a walk-away number above it can
+   never trigger. With no market data we fall back to their own number
+   and flag it as an estimate. */
 export function planNumbers(deal, median) {
-  const target = median || deal.asking;
+  const asking = deal.asking;
+  const target = Math.min(median || asking, asking);
+  const walk = Math.min(median ? median + 800 : asking, asking);
   return {
     open: Math.round((target - 600) / 100) * 100,
     target,
-    walk: target + 800,
+    walk,
     leverage: deal.junkTotal + deal.taxError,
+    estimated: !median,
   };
 }
 

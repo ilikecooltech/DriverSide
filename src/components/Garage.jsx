@@ -19,7 +19,7 @@ const ADD_FIELDS = [
 
 /* fit heuristic calibrated to the demo cars: at-market ≈ 85, each %
    over market costs ~2.2 pts, each % under adds ~1.3 */
-function marketFit(price, median) {
+export function marketFit(price, median) {
   if (!median) return 70;
   const pct = ((median - price) / median) * 100;
   const fit = pct >= 0 ? 85 + pct * 1.3 : 85 + pct * 2.2;

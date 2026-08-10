@@ -8,7 +8,10 @@
     "server": "node server/index.mjs",
     "build": "vite build",
     "start": "node server/index.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
@@ -20,6 +23,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "playwright": "^1.62.1",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.1.10"
   }
 }
