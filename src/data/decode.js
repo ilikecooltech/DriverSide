@@ -124,7 +124,9 @@ MOCK_DEAL.linesCheck[0].why = "Comparable EX-Ls in the Houston metro list around
 
 /* ---------- market + dealer economics ---------- */
 
-export const MARKET_FALLBACK = { count: 14, median: 30400, low: 28900, high: 32400, source: "fallback", comps: [] };
+/* Retired: a placeholder median read as a real market call. The Decoder
+   now shows "checking…" and then either real data or an honest no-data
+   state — it never claims a number it hasn't verified. */
 
 /* Dealers acquire at ~85–90% cost-to-market plus recon; healthy front-end
    gross is $2–3k. Fair-price target = est. all-in + mid gross. */

@@ -14,27 +14,33 @@ import posthog from "posthog-js";
 const KEY = import.meta.env.VITE_POSTHOG_KEY;
 let ready = false;
 
+/* Analytics is never load-bearing. A bad key, a blocked domain, or an ad
+   blocker must not take the product down with it. */
 export function initAnalytics() {
   if (!KEY || ready) return;
-  posthog.init(KEY, {
-    api_host: import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com",
-    person_profiles: "identified_only",
-    capture_pageview: false, // single-page shell; we track screens ourselves
-  });
-  ready = true;
+  try {
+    posthog.init(KEY, {
+      api_host: import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com",
+      person_profiles: "identified_only",
+      capture_pageview: false, // single-page shell; we track screens ourselves
+    });
+    ready = true;
+  } catch (err) {
+    console.error("PostHog init failed — analytics off:", err?.message || err);
+  }
 }
 
 export function track(event, props = {}) {
   if (!ready) return;
-  posthog.capture(event, props);
+  try { posthog.capture(event, props); } catch { /* never load-bearing */ }
 }
 
 export function identify(id, props = {}) {
   if (!ready) return;
-  posthog.identify(id, props);
+  try { posthog.identify(id, props); } catch { /* never load-bearing */ }
 }
 
 export function resetIdentity() {
   if (!ready) return;
-  posthog.reset();
+  try { posthog.reset(); } catch { /* never load-bearing */ }
 }

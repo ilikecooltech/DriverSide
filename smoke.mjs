@@ -24,8 +24,11 @@ const body = async () => await page.textContent("body");
    you nothing when the app took a different branch than you expected. */
 const expect = async (s, label) => {
   const t = await body();
-  if (!t.includes(s))
-    throw new Error(`${label}: missing "${s}"\n   page showed: ${t.slice(0, 220).replace(/\s+/g, " ").trim()}`);
+  if (!t.includes(s)) {
+    const shown = t.slice(0, 220).replace(/\s+/g, " ").trim() || "(nothing — the app failed to render)";
+    const crash = errors.length ? `\n   js errors: ${errors.slice(0, 3).join(" | ")}` : "";
+    throw new Error(`${label}: missing "${s}"\n   page showed: ${shown}${crash}`);
+  }
 };
 const expectNot = async (s, label) => { if ((await body()).includes(s)) throw new Error(`${label}: should NOT contain "${s}"`); };
 const btn = (name) => page.getByRole("button", { name });
@@ -174,8 +177,9 @@ await expect("· DEAL PASS", "pass badge");
 await btn(/PHOTOGRAPH THE QUOTE/).click();
 await page.waitForSelector("text=and up to $3,761", { timeout: 12000 });
 await btn(/SEE THE FULL DECODE/).click();
-await page.waitForSelector("text=LIVE MARKET NUMBERS", { timeout: 4000 });
-await expect("hondaoflakejackson", "named comps unlocked");
+// Wait for the market data itself, not a header that renders before it.
+await page.waitForSelector("text=hondaoflakejackson", { timeout: 10000 });
+await expect("LIVE MARKET NUMBERS", "scripts unlocked with live numbers");
 await btn("Walk away").click();
 await expect("over the live market median", "walk-away uses live median");
 await expect("My number is $30,934", "anchors at live median");

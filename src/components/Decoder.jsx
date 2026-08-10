@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { C, mono, heading, fmt, pmt, reducedMotion } from "../theme.js";
-import { MARKET_FALLBACK, STEP_BOUNDS, dealerMath, buildScripts } from "../data/decode.js";
+import { STEP_BOUNDS, dealerMath, buildScripts } from "../data/decode.js";
 import { Kicker, DecodeLine, StepperRow, PrimaryBtn, useDesktop } from "./ui.jsx";
 
 /* Deal Decoder, Direction A: sticky verdict strip + anchor nav.
@@ -16,7 +16,12 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
   const [script, setScript] = useState(0);
   const [price, setPrice] = useState(deal.asking);
   const [trade, setTrade] = useState(deal.trade.offer);
-  const [market, setMarket] = useState(deal.query?.model?.toLowerCase() === "cr-v" ? MARKET_FALLBACK : null);
+  /* Start with no market read rather than a placeholder median. The
+     leverage number is the emotional payload of this screen; showing one
+     figure and silently correcting it a beat later is exactly the kind of
+     confident-but-wrong behavior this product exists to call out. */
+  const [market, setMarket] = useState(null);
+  const [marketState, setMarketState] = useState("loading");
 
   const boxRef = useRef(null);
   const refs = { ver: useRef(null), prob: useRef(null), mkt: useRef(null), trd: useRef(null), say: useRef(null) };
@@ -25,18 +30,24 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
     setPrice(deal.asking);
     setTrade(deal.trade.offer);
     setOpenLine(null);
-    if (!deal.query) return;
+    setMarket(null);
+    if (!deal.query) { setMarketState("none"); return; }
+    setMarketState("loading");
     let dead = false;
     const q = new URLSearchParams({ zip: deal.zip, radius: "100", year: deal.query.year, make: deal.query.make, model: deal.query.model, trim: deal.query.trim || "" });
     fetch(`/api/market?${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!dead && d && typeof d.median === "number") {
+        if (dead) return;
+        if (d && typeof d.median === "number") {
           setMarket({ count: d.count, median: d.median, low: d.low, high: d.high, comps: d.comps || [], source: d.source });
+          setMarketState("ok");
           onMedian?.(d.median);
+        } else {
+          setMarketState("none");
         }
       })
-      .catch(() => {});
+      .catch(() => { if (!dead) setMarketState("none"); });
     return () => { dead = true; };
   }, [deal]);
 
@@ -210,6 +221,10 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
                 </div>
               )}
             </>
+          ) : marketState === "loading" ? (
+            <div style={{ border: `1px dashed ${C.dash}`, padding: "14px 16px", fontSize: 12.5, color: C.inkSoft, lineHeight: 1.5 }}>
+              Checking live listings near {deal.zip}…
+            </div>
           ) : (
             <div style={{ border: `1px dashed ${C.dash}`, padding: "14px 16px", fontSize: 12.5, color: C.inkSoft, lineHeight: 1.5 }}>
               No live data for this vehicle yet{deal.marketEst ? "" : " and no estimate entered"}. Pull comps for the same year, trim, and miles on AutoTrader or CarGurus and use the middle of the pack as your anchor.
