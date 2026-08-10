@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { C, mono, heading, fmt, stripes, reducedMotion } from "../theme.js";
 import { SCAN_STEPS } from "../data/decode.js";
+import { track } from "../lib/analytics.js";
 import { Kicker, PrimaryBtn, GhostBtn } from "./ui.jsx";
 
 /* First run: capture → the 42-second wait as a receipt of work → the reveal.
@@ -21,7 +22,8 @@ export function CaptureFlow({ onSeeDecode, onManual, pace = 650 }) {
   };
   useEffect(() => clearAll, []);
 
-  const start = () => {
+  const start = (entryMethod) => {
+    track("quote_capture_started", { entry_method: entryMethod });
     clearAll();
     if (reducedMotion()) {
       setPhase("reveal"); setNum(LEVERAGE_LO); setCountDone(true);
@@ -62,10 +64,10 @@ export function CaptureFlow({ onSeeDecode, onManual, pace = 650 }) {
           <div style={{ width: 56, height: 56, border: `2px solid ${C.ink}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>◉</div>
           <Kicker style={{ letterSpacing: "0.1em" }}>THE DEALER'S SHEET GOES HERE</Kicker>
         </div>
-        <PrimaryBtn onClick={start} height={52} style={{ fontSize: 18 }}>PHOTOGRAPH THE QUOTE</PrimaryBtn>
+        <PrimaryBtn onClick={() => start("camera")} height={52} style={{ fontSize: 18 }}>PHOTOGRAPH THE QUOTE</PrimaryBtn>
         <div style={{ display: "flex", gap: 8 }}>
-          <GhostBtn onClick={start} style={{ flex: 1, width: "auto" }}>Upload a photo</GhostBtn>
-          <GhostBtn onClick={onManual} style={{ flex: 1, width: "auto" }}>Type it in — 30 seconds</GhostBtn>
+          <GhostBtn onClick={() => start("upload")} style={{ flex: 1, width: "auto" }}>Upload a photo</GhostBtn>
+          <GhostBtn onClick={() => { track("quote_capture_started", { entry_method: "manual" }); onManual(); }} style={{ flex: 1, width: "auto" }}>Type it in — 30 seconds</GhostBtn>
         </div>
       </div>
     );
