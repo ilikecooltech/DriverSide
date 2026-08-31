@@ -76,7 +76,7 @@ function SetupEditor({ setup, onSave, onCancel }) {
 
 export function Profile({
   name, isGuest, archetypeName, setup, connections, onConnect, onDisconnect,
-  onSaveSetup, onEditGoal, onSignOut, onBack,
+  onSaveSetup, onEditGoal, onSignOut, onBack, onRequireAccount,
 }) {
   const [editing, setEditing] = useState(false);
   const [al, setAl] = useState({ 0: true, 1: true, 2: false });
@@ -87,6 +87,22 @@ export function Profile({
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
       <button onClick={onBack} style={{ minHeight: 40, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 4 }}>← Back</button>
+
+      {isGuest && (
+        <div style={{ border: `1px solid ${C.amber}`, background: C.amberBg, padding: "12px 14px", marginBottom: 16 }}>
+          <Kicker color={C.amberDark} style={{ marginBottom: 6 }}>BROWSING AS A GUEST</Kicker>
+          <div style={{ fontSize: 12.5, color: C.amberDark, lineHeight: 1.55, marginBottom: 10 }}>
+            Everything here works and stays on this device. An account only adds what a phone can't do on its own —
+            alerts that reach you with the app closed, and the browser extension syncing to this garage.
+          </div>
+          <button
+            onClick={() => onRequireAccount?.("alerts")}
+            style={{ minHeight: 40, width: "100%", border: `1.5px solid ${C.amberDark}`, background: C.card, color: C.amberDark, fontFamily: mono, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}
+          >
+            CREATE AN ACCOUNT — KEEPS EVERYTHING YOU'VE BUILT
+          </button>
+        </div>
+      )}
 
       <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <span style={{ width: 44, height: 44, border: `1.5px solid ${C.ink}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: heading, fontWeight: 600, fontSize: 18, flexShrink: 0 }}>{initial}</span>
@@ -154,9 +170,17 @@ export function Profile({
         </>
       )}
 
-      <Kicker style={{ margin: "16px 0 2px" }}>ALERTS{isGuest ? " — NEED AN ACCOUNT" : ""}</Kicker>
+      <Kicker style={{ margin: "16px 0 2px" }}>ALERTS{isGuest ? " — TAP TO TURN ON" : ""}</Kicker>
       {ALERTS.map((t, i) => (
-        <button key={t} onClick={() => !isGuest && setAl({ ...al, [i]: !al[i] })} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 48, border: "none", borderBottom: `1px dashed ${C.line}`, background: "none", cursor: isGuest ? "default" : "pointer", fontSize: 13.5, color: isGuest ? C.inkSoft : C.ink, padding: 0, textAlign: "left" }}>
+        <button
+          key={t}
+          /* A guest gets the account ask here, at the moment they reach
+             for it, and lands back on this screen with the switches live.
+             (The prompt takes the whole screen, so this component
+             remounts — no pending-toggle to hand back.) */
+          onClick={() => (isGuest ? onRequireAccount?.("alerts") : setAl({ ...al, [i]: !al[i] }))}
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 48, border: "none", borderBottom: `1px dashed ${C.line}`, background: "none", cursor: "pointer", fontSize: 13.5, color: isGuest ? C.inkSoft : C.ink, padding: 0, textAlign: "left" }}
+        >
           <span>{t}</span>
           <span style={{ fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", padding: "6px 10px", border: `1px solid ${!isGuest && al[i] ? C.green : C.dash}`, background: !isGuest && al[i] ? C.greenBg : C.card, color: !isGuest && al[i] ? C.green : C.inkSoft }}>
             {!isGuest && al[i] ? "ON" : "OFF"}

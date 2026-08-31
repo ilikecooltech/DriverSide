@@ -18,6 +18,8 @@ import { Paywall } from "./components/Paywall.jsx";
 import { ModeSwitch, PrepMode, TableMode } from "./components/Modes.jsx";
 import { Walked, Receipt, FreshStart } from "./components/Outcomes.jsx";
 import { Profile } from "./components/Profile.jsx";
+import { SignInPrompt } from "./components/SignInPrompt.jsx";
+import { requiresAccount } from "./lib/account.js";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -66,23 +68,32 @@ export default function App() {
 
   const desktop = useDesktop();
 
+  /* A phone-OTP user has no email, so the greeting falls back to the last
+     four digits — "Hi 4567" beats "Hi null".
+
+     Called both on boot and when a guest signs in mid-session. It only
+     ever adds: no local state is cleared here, so a guest who signs in
+     keeps their garage, goal and setup. Only handleSignOut clears. */
+  const adoptSession = (user) => {
+    setAuth("account");
+    const label = user.email
+      ? user.email.split("@")[0]
+      : user.phone
+        ? user.phone.replace(/\D/g, "").slice(-4)
+        : null;
+    setUserName(label);
+    identify(user.id, { email: user.email || null, phone: user.phone || null });
+  };
+
   useEffect(() => {
     initAnalytics();
     getSession().then((s) => {
-      if (s?.user) {
-        setAuth("account");
-        setUserName(s.user.email?.split("@")[0] || null);
-        identify(s.user.id, { email: s.user.email });
-      }
+      if (s?.user) adoptSession(s.user);
       setBooted(true);
     });
-    // Catches the OAuth / magic-link return trip.
+    // Catches the OTP verify and the magic-link return trip.
     return onAuthChange((session) => {
-      if (session?.user) {
-        setAuth("account");
-        setUserName(session.user.email?.split("@")[0] || null);
-        identify(session.user.id, { email: session.user.email });
-      }
+      if (session?.user) adoptSession(session.user);
     });
   }, []);
 
@@ -139,6 +150,21 @@ export default function App() {
     track("account_disconnected", { connector: id });
   };
 
+  /* ---- the account ask, at the point of need ----
+     Guests get the whole app. When they reach for the one or two things a
+     phone alone can't do, requireAccount puts the code screen in front of
+     them and then puts them back exactly where they were. `requiresAccount`
+     is the single table in lib/account.js, so switching a capability on
+     later (deal pass, once subscriptions land) needs no change here. */
+  const [signInAsk, setSignInAsk] = useState(null); // { capability, after }
+
+  const requireAccount = (capability, after = null) => {
+    if (auth === "account" || !requiresAccount(capability)) { after?.(); return true; }
+    setSignInAsk({ capability, after });
+    track("account_gate_hit", { capability });
+    return false;
+  };
+
   /* ---- deal flow ---- */
   const openPaywall = (context, back, after = null) => {
     setGate({ context, back, after });
@@ -184,6 +210,35 @@ export default function App() {
             setEditingGoal(false);
             setTab("shop");
             track("onboarding_completed", { archetype: arch.name });
+          }}
+        />
+      </Shell>
+    );
+
+  /* Sits in front of the app, not at the front door: the guest is
+     already inside and goes back to what they were doing either way. */
+  if (signInAsk)
+    return (
+      <Shell desktop={desktop} context="SIGN IN">
+        <SignInPrompt
+          capability={signInAsk.capability}
+          onSignedIn={(session) => {
+            /* onAuthChange normally flips auth to "account" for us, but it
+               never fires with no Supabase keys set — and the gate would
+               then re-ask forever. Adopt the session here when we have one
+               and fall back to a bare flip when we don't, so the prototype
+               converts too. Either way this only adds: nothing the guest
+               built is cleared. */
+            if (session?.user) adoptSession(session.user);
+            else setAuth("account");
+            track("account_gate_converted", { capability: signInAsk.capability });
+            const after = signInAsk.after;
+            setSignInAsk(null);
+            after?.();
+          }}
+          onClose={() => {
+            track("account_gate_dismissed", { capability: signInAsk.capability });
+            setSignInAsk(null);
           }}
         />
       </Shell>
@@ -251,6 +306,7 @@ export default function App() {
           onSaveSetup={(s) => { setSetup(s); track("setup_updated"); }}
           onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
           onSignOut={handleSignOut} onBack={() => setShowProfile(false)}
+          onRequireAccount={requireAccount}
         />
       ) : (
         <>
