@@ -41,6 +41,7 @@ export default async function handler(req, res) {
         dealer: l.dealer?.name || l.source || "Dealer",
         days: l.dom_active ?? l.dom ?? 0,
         certified: Boolean(l.is_certified),
+        image: cachedPhoto(l),
       }));
 
     res.json({ source: "live", count: data.num_found ?? listings.length, listings });
@@ -48,6 +49,27 @@ export default async function handler(req, res) {
     console.error("MarketCheck shop request failed:", err.message);
     res.json({ source: "none", listings: [], note: "Live request failed" });
   }
+}
+
+/* MarketCheck returns two photo arrays and only one of them is safe.
+
+   `photo_links` points at the dealer's own CDN: it dies the moment the
+   listing comes down, which is exactly when a shopper is most likely to
+   still be looking at our saved copy. `photo_links_cached` is
+   MarketCheck's own cached copy — it stays up and it's fast.
+
+   So we read the cached array only. A listing with no cached photo
+   returns null and the card shows a placeholder, which is honest and
+   quiet; a broken <img> is neither. https-only, because the app is
+   served over https and a mixed-content image would be blocked. */
+export function cachedPhoto(listing) {
+  const cached =
+    listing?.media?.photo_links_cached ||
+    listing?.photo_links_cached ||
+    null;
+  if (!Array.isArray(cached)) return null;
+  const first = cached.find((u) => typeof u === "string" && u.trim().startsWith("https://"));
+  return first ? first.trim() : null;
 }
 
 /* MarketCheck body types are messier than our six buckets. */

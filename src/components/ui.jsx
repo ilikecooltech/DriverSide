@@ -17,6 +17,69 @@ export function useDesktop() {
 }
 
 /* Verdict chip — always carries text, never color alone. */
+/* ── Vehicle photo ────────────────────────────────────────────────────
+   A results card is a row of numbers until you can see the car, so the
+   photo carries real weight — but only MarketCheck's cached copy is
+   trustworthy enough to render (see cachedPhoto in api/shop.js).
+
+   Three states, one fixed box: the frame reserves its space from the
+   first paint at a constant 16:10, so a photo arriving late never
+   reflows the list under the reader's thumb. No src, or a src that
+   fails, settles on the same quiet placeholder rather than a broken
+   image — sample inventory has no photos at all, and that has to look
+   deliberate. Decorative-but-named: the alt text is the vehicle, since
+   that is what the picture is of. */
+export function VehicleImage({ src, alt, ratio = "16 / 10" }) {
+  const [state, setState] = React.useState(src ? "loading" : "empty");
+
+  // A new card can reuse this slot as the list re-ranks.
+  React.useEffect(() => { setState(src ? "loading" : "empty"); }, [src]);
+
+  const frame = {
+    position: "relative",
+    width: "100%",
+    aspectRatio: ratio,
+    background: C.neutralTint,
+    borderBottom: `1px solid ${C.line}`,
+    overflow: "hidden",
+  };
+
+  return (
+    <div style={frame}>
+      {state !== "ready" && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute", inset: 0, display: "flex",
+            alignItems: "center", justifyContent: "center",
+            fontFamily: mono, fontSize: 9.5, letterSpacing: "0.12em",
+            color: C.dash,
+          }}
+        >
+          {state === "loading" ? "LOADING…" : "NO PHOTO"}
+        </div>
+      )}
+      {src && (
+        <img
+          src={src}
+          alt={alt || ""}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setState("ready")}
+          onError={() => setState("empty")}
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover", display: "block",
+            opacity: state === "ready" ? 1 : 0,
+            transition: "opacity 160ms ease-out",
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 export function Chip({ verdict }) {
   const m = {
     green: { bg: C.greenBg, fg: C.green, t: "FAIR" },

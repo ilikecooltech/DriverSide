@@ -206,6 +206,10 @@ export function toGarageItem(v, src = "SHOPPED") {
     dealer: v.dealer || "",
     days: v.days || 0,
     drop: v.drop || null,
+    /* The cached MarketCheck photo, carried so a saved car keeps its
+       picture in the Garage instead of reverting to a placeholder. Null
+       whenever the listing had no cached image (sample data included). */
+    image: v.image || null,
     src,
     decoded: Boolean(v.decoded),
   };
