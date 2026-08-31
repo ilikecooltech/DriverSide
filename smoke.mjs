@@ -98,6 +98,12 @@ await expect("SHOPPING FOR YOUR GOAL", "backing out returns to Shop");
 await expect("Fresh Start", "backing out keeps the existing goal");
 await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
 
+/* ═══ HOME LOGO — the wordmark is a real control ═══ */
+await page.getByRole("button", { name: "DriverSide — home" }).click();
+await expect("Start wherever you are.", "wordmark returns to Start");
+await page.getByRole("button", { name: "Shop", exact: true }).click();
+await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
+
 await expect("Fresh Start", "shop shows the goal");
 await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 5000 });
 await expect("SAMPLE INVENTORY", "sample data labeled honestly");

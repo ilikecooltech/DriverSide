@@ -175,6 +175,23 @@ export default function App() {
     return false;
   };
 
+  /* Home is a navigation, not a reset.
+
+     It closes whatever is layered on top — the profile sheet, the goal
+     editor, the account ask — and lands on Start. It deliberately does
+     not touch `deal`, `dealView`, the garage or the setup, so a decode
+     left mid-session is exactly where it was when you come back to the
+     Dealer tab (the same way the bottom bar already behaves). Closing the
+     goal editor is what "Keep my current goal" does: the saved goal is
+     untouched, only the unsaved answers in flight go. */
+  const goHome = () => {
+    setShowProfile(false);
+    setEditingGoal(false);
+    setSignInAsk(null);
+    setTab("start");
+    track("nav_home");
+  };
+
   /* ---- deal flow ---- */
   const openPaywall = (context, back, after = null) => {
     setGate({ context, back, after });
@@ -239,7 +256,7 @@ export default function App() {
 
   if ((tab === "shop" && !onboarded) || editingGoal)
     return (
-      <Shell desktop={desktop} context="YOUR GOAL">
+      <Shell desktop={desktop} context="YOUR GOAL" onHome={goHome}>
         <Onboarding
           /* Only cancellable when a goal already exists — otherwise there
              is nothing to fall back to and Shop has nothing to rank. */
@@ -259,7 +276,7 @@ export default function App() {
      already inside and goes back to what they were doing either way. */
   if (signInAsk)
     return (
-      <Shell desktop={desktop} context="SIGN IN">
+      <Shell desktop={desktop} context="SIGN IN" onHome={goHome}>
         <SignInPrompt
           capability={signInAsk.capability}
           onSignedIn={(session) => {
@@ -291,6 +308,7 @@ export default function App() {
   return (
     <Shell
       desktop={desktop}
+      onHome={goHome}
       masthead={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {tab === "dealer" && dealView === "decoder" && (
@@ -453,14 +471,54 @@ export default function App() {
 
 const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
 
-function Shell({ masthead, tabs, bottomNav, context, children, desktop }) {
+/* The masthead, the Start screen and the bottom bar are one system: card
+   surfaces with hairline rules bracketing the paper content between them,
+   heading type for names, mono micro-labels for state.
+
+   The wordmark is the home control when `onHome` is given — a real button
+   with an accessible name, so it is reachable by keyboard and announced
+   as "DriverSide, home" rather than read as decoration. Before anyone has
+   entered the app there is nowhere to go home to, so it stays plain text. */
+function Wordmark({ onHome }) {
+  const type = { fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em", color: C.ink };
+  if (!onHome) return <span style={type}>DriverSide</span>;
+  return (
+    <button
+      onClick={onHome}
+      aria-label="DriverSide — home"
+      style={{
+        ...type,
+        background: "none",
+        border: "none",
+        /* Padding buys the 44px hit area the wordmark's cap height cannot;
+           the negative margin gives the header its spacing back. */
+        padding: "12px 8px 12px 0",
+        margin: "-12px 0",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{ width: 7, height: 7, background: C.accent, display: "block", flexShrink: 0 }}
+      />
+      DriverSide
+    </button>
+  );
+}
+
+function Shell({ masthead, tabs, bottomNav, context, children, desktop, onHome }) {
   return (
     <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
       <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
-        <div style={{ padding: "14px 16px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.line}` }}>
-          <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em" }}>DriverSide</span>
+        {/* Card surface + hairline, matching the bottom bar at the other
+            end of the screen. */}
+        <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: C.card, borderBottom: `1px solid ${C.line}` }}>
+          <Wordmark onHome={onHome} />
           {masthead || (
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>{context || "SIGN IN"}</span>
+            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
           )}
         </div>
         {tabs}
