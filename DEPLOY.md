@@ -68,8 +68,9 @@ Apple Developer account at $99/yr, a Google Cloud OAuth client) and the
 paid subscription work it goes with. Nothing was deleted:
 
 - `signInWithProvider()` in `src/lib/supabase.js` is intact.
-- The buttons live in `src/components/Login.jsx` behind
-  `socialLoginEnabled`.
+- The button markup was retired with the Phase 1 Start screen; re-adding
+  it to `src/components/Start.jsx` behind `socialLoginEnabled` is the
+  remaining work. `signInWithProvider()` itself is untouched.
 - Set `VITE_ENABLE_SOCIAL_LOGIN=true` (Vercel env or `.env.local`) and
   enable the provider in Supabase to bring both back — no code change.
 

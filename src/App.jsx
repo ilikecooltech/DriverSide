@@ -7,7 +7,7 @@ import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
 import { useDesktop } from "./components/ui.jsx";
-import { Login } from "./components/Login.jsx";
+import { Start } from "./components/Start.jsx";
 import { Onboarding } from "./components/Onboarding.jsx";
 import { Shop } from "./components/Shop.jsx";
 import { Garage } from "./components/Garage.jsx";
@@ -102,9 +102,17 @@ export default function App() {
     saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, hasPass });
   }, [archetype, setup, cars, connections, hasPass]);
 
-  const handleAuth = (kind) => {
-    setAuth(kind);
-    track("auth_completed", { kind, configured: authConfigured });
+  /* A door press is the whole entry: become a guest, and land where they
+     said they were. `profile` is the interim home for "getting my money
+     ready" until Phase 2 builds the Finance tab — APR, term and trade
+     already live on the setup sheet, so it is a real destination. */
+  const enterFromStart = (dest) => {
+    setAuth("guest");
+    track("auth_completed", { kind: "guest", configured: authConfigured });
+    track("start_door_opened", { dest: dest?.tab || "shop" });
+    if (dest?.tab === "profile") { setShowProfile(true); return; }
+    if (dest?.tab) setTab(dest.tab);
+    if (dest?.dealView) setDealView(dest.dealView);
   };
 
   const handleSignOut = async () => {
@@ -196,11 +204,38 @@ export default function App() {
   const leverage = deal ? deal.junkTotal + deal.taxError : null;
   const archetypeKey = archetype?.key || null;
 
-  /* ---- gates before the main app ---- */
-  if (!auth)
-    return <Shell desktop={desktop}><Login onAuth={handleAuth} /></Shell>;
+  /* ---- gates before the main app ----
 
-  if (!onboarded || editingGoal)
+     Phase 1: the Start screen is the only thing between arriving and
+     working. Picking a door enters as a guest and lands on that surface —
+     there is no account step and no interstitial in between.
+
+     Onboarding now gates Shop alone. Shop ranks against a stated goal so
+     it genuinely needs one; the Garage, the decoder and the setup sheet do
+     not, and making someone answer five questions to photograph a
+     worksheet they are holding would be exactly the funnel this screen
+     exists to remove. Anyone who reaches Shop later still gets asked. */
+  if (!auth)
+    return (
+      /* "START", not the Shell's default "SIGN IN" label — on this screen
+         that label read as a second account CTA competing with the one
+         quiet line at the bottom. */
+      <Shell desktop={desktop} context="START">
+        <Start
+          cars={cars}
+          archetypeName={archetype?.name || null}
+          setup={setup}
+          onEnter={(dest) => enterFromStart(dest)}
+          onSignedIn={(session) => {
+            if (session?.user) adoptSession(session.user);
+            else setAuth("account");
+            track("auth_completed", { kind: "account", configured: authConfigured });
+          }}
+        />
+      </Shell>
+    );
+
+  if ((tab === "shop" && !onboarded) || editingGoal)
     return (
       <Shell desktop={desktop} context="YOUR GOAL">
         <Onboarding

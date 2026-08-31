@@ -28,8 +28,13 @@ export const authConfigured = Boolean(client);
    certification is done and paid subscriptions land. The capability below
    is intact and tested-by-inspection; flip VITE_ENABLE_SOCIAL_LOGIN=true
    (Vercel env or .env.local) to bring the buttons back with no code
-   change. Keep this flag and `signInWithProvider` together — the Login
-   screen reads `socialLoginEnabled` and nothing else. */
+   change. Keep this flag and `signInWithProvider` together.
+
+   The button markup itself came out with the Phase 1 Start screen (the
+   old Login screen is gone; see git history at commit a6f4b50 for the
+   last version of it). The capability below is untouched — re-enabling
+   means adding buttons to Start.jsx that call `signInWithProvider`, and
+   flipping the flag. */
 export const socialLoginEnabled =
   String(import.meta.env.VITE_ENABLE_SOCIAL_LOGIN || "").trim().toLowerCase() === "true";
 
