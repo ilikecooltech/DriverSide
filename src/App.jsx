@@ -8,6 +8,8 @@ import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.j
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
 import { useDesktop } from "./components/ui.jsx";
 import { Start } from "./components/Start.jsx";
+import { BottomNav, NAV_HEIGHT, isDealerSessionLive } from "./components/BottomNav.jsx";
+import { Finance } from "./components/Finance.jsx";
 import { Onboarding } from "./components/Onboarding.jsx";
 import { Shop } from "./components/Shop.jsx";
 import { Garage } from "./components/Garage.jsx";
@@ -34,7 +36,7 @@ const DEFAULT_SETUP = {
 };
 
 const CONTEXT = {
-  shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER",
+  start: "START", shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER", finance: "YOUR MONEY",
   capture: "AT THE DEALER", manual: "MANUAL ENTRY", decoder: "DEAL DECODER",
   paywall: "DEAL PASS", modes: "MODE", prep: "PREP MODE · TONIGHT",
   table: "TABLE MODE · ONE HAND", walked: "WATCHING · DAY 2",
@@ -284,6 +286,8 @@ export default function App() {
 
   const dv = tab === "dealer" ? dealView : tab;
 
+  const dealerSessionActive = isDealerSessionLive(deal, dealView);
+
   return (
     <Shell
       desktop={desktop}
@@ -317,23 +321,20 @@ export default function App() {
           </button>
         </div>
       }
-      tabs={
-        <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-          {[["shop", "Shop"], ["garage", `Garage${cars.length ? ` (${cars.length})` : ""}`], ["dealer", "At the Dealer"]].map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => { setTab(k); setShowProfile(false); }}
-              aria-current={tab === k && !showProfile ? "page" : undefined}
-              style={{
-                flex: 1, minHeight: 42, cursor: "pointer", fontSize: 12.5, fontWeight: 700,
-                border: "none", borderBottom: tab === k && !showProfile ? `2px solid ${C.ink}` : "2px solid transparent",
-                background: "none", color: tab === k && !showProfile ? C.ink : C.inkSoft,
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      bottomNav={
+        <BottomNav
+          tab={showProfile ? null : tab}
+          desktop={desktop}
+          /* Real state, not decoration: the dot means a decode is open and
+             has not reached an outcome yet. */
+          dealerLive={dealerSessionActive}
+          onGo={(k) => {
+            setShowProfile(false);
+            setTab(k);
+            if (k === "dealer" && !deal) setDealView("capture");
+            track("nav_tab", { tab: k });
+          }}
+        />
       }
     >
       {showProfile ? (
@@ -348,6 +349,30 @@ export default function App() {
         />
       ) : (
         <>
+          {/* Start is a destination now, not just the front door. Its doors
+              move between tabs instead of entering the app. */}
+          {tab === "start" && (
+            <Start
+              cars={cars}
+              archetypeName={archetype?.name || null}
+              setup={setup}
+              onEnter={(dest) => {
+                if (dest?.tab === "profile") { setShowProfile(true); return; }
+                if (dest?.tab) setTab(dest.tab);
+                if (dest?.dealView) setDealView(dest.dealView);
+                track("start_door_opened", { dest: dest?.tab || "shop" });
+              }}
+              onSignedIn={(session) => {
+                if (session?.user) adoptSession(session.user);
+                else setAuth("account");
+              }}
+            />
+          )}
+
+          {tab === "finance" && (
+            <Finance setup={setup} onEditTerms={() => setShowProfile(true)} />
+          )}
+
           {tab === "shop" && (
             <Shop
               archetypeKey={archetypeKey} archetypeName={archetype?.name}
@@ -428,10 +453,10 @@ export default function App() {
 
 const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
 
-function Shell({ masthead, tabs, context, children, desktop }) {
+function Shell({ masthead, tabs, bottomNav, context, children, desktop }) {
   return (
     <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
-      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none" }}>
+      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
         <div style={{ padding: "14px 16px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.line}` }}>
           <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em" }}>DriverSide</span>
           {masthead || (
@@ -440,6 +465,9 @@ function Shell({ masthead, tabs, context, children, desktop }) {
         </div>
         {tabs}
         {children}
+        {/* The nav is fixed, so the column reserves its height rather than
+            letting content scroll underneath it. */}
+        {bottomNav}
       </div>
     </div>
   );

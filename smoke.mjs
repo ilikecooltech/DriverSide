@@ -176,7 +176,7 @@ await page.screenshot({ path: "/tmp/shot-profile.png" });
 await btn("Profile").click();
 
 // ═══ AT THE DEALER — decode, gates, modes, outcomes ═══
-await btn("At the Dealer").click();
+await btn("Dealer").click();
 await expect("Photograph it", "capture state");
 await btn(/PHOTOGRAPH THE QUOTE/).click();
 await page.waitForSelector("text=and up to $3,761", { timeout: 12000 });
@@ -251,7 +251,7 @@ await expect("Repeat your number once, then be quiet", "callback coaching");
 await btn(/GARAGE CARS/).click();
 await expect("SCORED FOR", "walked routes to garage");
 
-await btn("At the Dealer").click();
+await btn("Dealer").click();
 await btn("MODES").click();
 await btn(/I signed/).click();
 await expect("VS THEIR FIRST SHEET, YOU KEPT", "receipt");

@@ -44,10 +44,7 @@ export const JOURNEY_DOORS = [
     title: "Getting my money ready",
     blurb: "Direct vs. dealer financing, what the loan really costs, and the true cost of ownership.",
     cta: "FINANCE →",
-    /* Phase 2 builds the Finance tab. Until it exists this lands on the
-       setup sheet, which is where APR, term and trade actually live today
-       — a real destination rather than a dead door. */
-    dest: { tab: "profile" },
+    dest: { tab: "finance" },
   },
   {
     key: "quote",
