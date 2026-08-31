@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { C, mono, heading, fmt } from "../theme.js";
 import {
   BODY_TYPES, FILTER_META, profileFor, defaultFilters, matchScore,
-  valueLabel, SAMPLE_INVENTORY, filterInventory, segmentMedian,
+  valueLabel, SAMPLE_INVENTORY, filterInventory, segmentMedian, formatFilterValue,
 } from "../data/shopping.js";
 import { Kicker, PrimaryBtn, useDesktop } from "./ui.jsx";
 
@@ -66,7 +66,7 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
         <span style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>{m.label}</span>
         <button onClick={() => set(k, Math.max(m.min, val - m.step))} aria-label={`Lower ${m.label}`} style={btn}>−</button>
         <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 800, width: 82, textAlign: "center" }}>
-          {m.money ? fmt(val) : val.toLocaleString()}
+          {formatFilterValue(m, val)}
         </span>
         <button onClick={() => set(k, Math.min(m.max, val + m.step))} aria-label={`Raise ${m.label}`} style={btn}>+</button>
       </div>

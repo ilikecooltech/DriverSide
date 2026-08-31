@@ -1,3 +1,5 @@
+import { fmt } from "../theme.js";
+
 /* Shopping: what each archetype should be shown, the filter set, and how
    a listing is scored against this buyer's needs.
 
@@ -137,10 +139,22 @@ export function defaultFilters(profile, setup) {
   };
 }
 
+/* A filter value is money, a bare number, or a counted quantity, and the
+   three do not format alike. A model year is a bare number: grouping it
+   renders 2016 as "2,016", which a buyer scans as a price. Miles keep the
+   separator, because 80,000 really is a count. `plain` marks the first
+   kind, so the rule lives with the filter definition instead of being
+   re-decided at each call site. */
+export function formatFilterValue(meta, value) {
+  if (meta?.money) return fmt(value);
+  if (meta?.plain) return String(value);
+  return Number(value).toLocaleString();
+}
+
 export const FILTER_META = {
   maxPrice: { label: "Max price", step: 1000, min: 5000, max: 80000, money: true },
   maxMiles: { label: "Max miles", step: 10000, min: 10000, max: 150000 },
-  minYear: { label: "Newest year from", step: 1, min: 2012, max: 2025 },
+  minYear: { label: "Newest year from", step: 1, min: 2012, max: 2025, plain: true },
   radius: { label: "Search radius (mi)", step: 25, min: 25, max: 250 },
 };
 
