@@ -51,9 +51,18 @@ if (!(await body()).includes("THE ONLY ONE AT THE TABLE")) {
   }
 }
 
-// ═══ LOGIN — guest is a first-class door ═══
+// ═══ LOGIN — guest is a first-class door, no social buttons ═══
 await expect("THE ONLY ONE AT THE TABLE ON YOUR SIDE", "login welcome");
-await btn(/continue as guest/).click();
+await expectNot("Continue with Google", "social login is deferred");
+await expectNot("Continue with Apple", "social login is deferred");
+/* The account door is a one-time code to a phone or an email. Walk in and
+   back out — sending a real code needs Supabase keys the smoke run has no
+   business using. */
+await btn(/Sign in with a code/).click();
+await expect("PHONE OR EMAIL", "otp identifier step");
+await btn(/SEND MY CODE/).click();
+await expect("Enter your phone number or email", "otp rejects an empty field");
+await btn(/Skip for now — continue as guest/).click();
 await expect("Nothing leaves this phone", "guest landing");
 await btn(/START DECODING/).click();
 
@@ -239,6 +248,14 @@ await btn(/^Garage/).click();
 await expect("SCORED FOR", "garage persisted across reload");
 await btn("Profile").click();
 await expect("78701", "setup persisted across reload");
+
+// ═══ GUEST GATE — the account ask lands at the point of need ═══
+await expect("BROWSING AS A GUEST", "guest banner in profile");
+await btn(/Price drops on garage cars/).click();
+await expect("We can't text a phone we don't have", "alerts gate asks for an account");
+await expect("PHONE OR EMAIL", "gate offers the same code door");
+await btn(/keep going as a guest/).click();
+await expect("BROWSING AS A GUEST", "dismissing the gate returns to the profile");
 
 // ═══ DESKTOP ═══
 await page.setViewportSize({ width: 1280, height: 900 });

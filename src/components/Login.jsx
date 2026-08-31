@@ -1,22 +1,32 @@
 import React, { useState } from "react";
 import { C, mono, heading } from "../theme.js";
-import { authConfigured, signInWithProvider, signInWithEmail } from "../lib/supabase.js";
+import { authConfigured, socialLoginEnabled, signInWithProvider } from "../lib/supabase.js";
 import { Kicker, PrimaryBtn, GhostBtn } from "./ui.jsx";
+import { OtpForm } from "./OtpForm.jsx";
 
-/* 4b — login with a first-class guest door. Guest states honestly what
-   works (everything) and what an account buys (alerts, extension sync).
-   Email is magic-link only. Backed by Supabase when configured; the
-   prototype simulates sign-in with no keys set. */
+/* 4b — login with a first-class guest door.
+
+   Guest is the default path in and the biggest button on the screen: no
+   sign-in, no code, nothing to invent — the decoder, the goal and the
+   garage all work on this device. An account is the second door, offered
+   for what a device can't do (alerts, sync across devices) and taken by
+   a one-time code to a phone number or an email. A guest who later wants
+   one is asked at the point of need, not here — see SignInPrompt.
+
+   Social sign-in (Google/Apple) is deferred until certification and is
+   hidden behind VITE_ENABLE_SOCIAL_LOGIN — see lib/supabase.js. */
 
 export function Login({ onAuth }) {
-  const [view, setView] = useState("welcome"); // welcome | email | sent | guest | done
-  const [email, setEmail] = useState("");
+  const [view, setView] = useState("welcome"); // welcome | account | guest | done
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
 
-  /* Real OAuth navigates away and returns via the redirect; the session
-     is picked up on load. Without Supabase keys we simulate so the demo
-     still walks end to end. */
+  const solidBtn = { minHeight: 50, border: `1.5px solid ${C.ink}`, background: C.ink, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer" };
+  const lineBtn = { minHeight: 50, border: `1.5px solid ${C.line}`, background: C.card, color: C.ink, fontSize: 14.5, fontWeight: 700, cursor: "pointer" };
+
+  /* ── Deferred: social sign-in. Off until certification (Apple Developer
+     account + Google Cloud OAuth client) and paid subscriptions land.
+     Flip VITE_ENABLE_SOCIAL_LOGIN=true to restore — no code change. ── */
   const oauth = async (provider) => {
     setError(null);
     setBusy(provider);
@@ -26,35 +36,28 @@ export function Login({ onAuth }) {
       if (r?.error) {
         setError(
           r.error.message?.includes("provider")
-            ? `${provider === "apple" ? "Apple" : "Google"} sign-in isn't enabled yet. Use email or continue as guest.`
-            : r.error.message || "Sign-in failed. Try email or guest."
+            ? `${provider === "apple" ? "Apple" : "Google"} sign-in isn't enabled yet. Use a code or continue as guest.`
+            : r.error.message || "Sign-in failed. Try a code or guest."
         );
       }
     } catch {
-      setError("Sign-in failed. Try email or continue as guest.");
+      setError("Sign-in failed. Try a code or continue as guest.");
     } finally {
       setBusy(null);
     }
   };
 
-  const magicLink = async () => {
-    if (!email.includes("@")) { setError("That doesn't look like an email address."); return; }
-    setError(null);
-    setBusy("email");
-    try {
-      const r = await signInWithEmail(email);
-      if (r?.simulated) { setView("done"); return; }
-      if (r?.error) setError(r.error.message || "Couldn't send the link. Try again.");
-      else setView("sent");
-    } catch {
-      setError("Couldn't send the link. Try again.");
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const solidBtn = { minHeight: 50, border: `1.5px solid ${C.ink}`, background: C.ink, color: "#fff", fontSize: 14.5, fontWeight: 700, cursor: "pointer" };
-  const lineBtn = { minHeight: 50, border: `1.5px solid ${C.line}`, background: C.card, color: C.ink, fontSize: 14.5, fontWeight: 700, cursor: "pointer" };
+  const socialButtons = !socialLoginEnabled ? null : (
+    <>
+      <button onClick={() => oauth("apple")} disabled={Boolean(busy)} style={solidBtn}>
+        {busy === "apple" ? "Opening Apple…" : " Continue with Apple"}
+      </button>
+      <button onClick={() => oauth("google")} disabled={Boolean(busy)} style={lineBtn}>
+        {busy === "google" ? "Opening Google…" : "Continue with Google"}
+      </button>
+    </>
+  );
+  /* ─────────────────────────────────────────────────────────────────── */
 
   if (view === "welcome")
     return (
@@ -72,56 +75,49 @@ export function Login({ onAuth }) {
           {error && (
             <div style={{ background: C.amberBg, color: C.amberDark, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, lineHeight: 1.45 }}>{error}</div>
           )}
-          <button onClick={() => oauth("apple")} disabled={Boolean(busy)} style={solidBtn}>
-            {busy === "apple" ? "Opening Apple…" : " Continue with Apple"}
+          <PrimaryBtn onClick={() => setView("guest")} height={52}>
+            SKIP FOR NOW — NO ACCOUNT →
+          </PrimaryBtn>
+          <div style={{ textAlign: "center", fontSize: 11.5, color: C.inkSoft, lineHeight: 1.5 }}>
+            No account. No code. Everything works.
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0 2px" }}>
+            <div style={{ flex: 1, borderTop: `1px dashed ${C.line}` }} />
+            <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.1em", color: C.inkSoft }}>OR</span>
+            <div style={{ flex: 1, borderTop: `1px dashed ${C.line}` }} />
+          </div>
+          <button onClick={() => setView("account")} style={lineBtn}>
+            Sign in with a code
           </button>
-          <button onClick={() => oauth("google")} disabled={Boolean(busy)} style={lineBtn}>
-            {busy === "google" ? "Opening Google…" : "Continue with Google"}
-          </button>
-          <button onClick={() => setView("email")} style={lineBtn}>Continue with email</button>
-          <button onClick={() => setView("guest")} style={{ minHeight: 48, border: "none", background: "none", color: C.accentText, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+          {socialButtons}
+          <button
+            onClick={() => setView("guest")}
+            style={{ minHeight: 44, border: "none", background: "none", color: C.accentText, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}
+          >
             Just let me in — continue as guest
           </button>
           <div style={{ textAlign: "center", fontSize: 11.5, color: C.inkSoft, lineHeight: 1.5 }}>
-            No account needed to decode a quote.<br />We never sell your data — to dealers or anyone.
+            We never sell your data — to dealers or anyone.
           </div>
         </div>
       </div>
     );
 
-  if (view === "email")
+  if (view === "account")
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "28px 24px", minHeight: 0 }}>
         <button onClick={() => setView("welcome")} style={{ alignSelf: "flex-start", minHeight: 44, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0 }}>← Back</button>
-        <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 26, margin: "12px 0 6px" }}>Your email</h1>
-        <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 16 }}>We'll send a sign-in link. No password to invent.</div>
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && magicLink()}
-          placeholder="you@example.com"
-          type="email"
-          style={{ minHeight: 50, border: `1.5px solid ${C.line}`, background: C.card, padding: "0 14px", fontSize: 15, fontFamily: mono, color: C.ink, width: "100%", boxSizing: "border-box" }}
-        />
-        {error && (
-          <div style={{ background: C.amberBg, color: C.amberDark, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, marginTop: 10 }}>{error}</div>
-        )}
-        <PrimaryBtn onClick={magicLink} height={50} style={{ marginTop: 10 }}>
-          {busy === "email" ? "SENDING…" : "SEND MY LINK"}
-        </PrimaryBtn>
-        <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 12, lineHeight: 1.5 }}>Used for sign-in and the alerts you choose. Nothing else. Ever.</div>
-      </div>
-    );
-
-  if (view === "sent")
-    return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "28px 24px", minHeight: 0 }}>
-        <Kicker color={C.green} style={{ marginTop: 12 }}>LINK SENT</Kicker>
-        <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 28, lineHeight: 1.12, margin: "8px 0 6px" }}>Check your email.</h1>
-        <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.55 }}>
-          Tap the link on this device and you're in. The link expires in an hour.
+        <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 26, margin: "12px 0 6px" }}>Phone or email</h1>
+        <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 16, lineHeight: 1.5 }}>
+          We'll send a one-time code. No password to invent.
         </div>
-        <GhostBtn onClick={() => setView("welcome")} style={{ marginTop: "auto" }}>← Different way in</GhostBtn>
+        <OtpForm onDone={() => setView("done")} autoFocus />
+        <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 12, lineHeight: 1.5 }}>
+          Used for sign-in and the alerts you choose. Nothing else. Ever.
+        </div>
+        <GhostBtn onClick={() => setView("guest")} style={{ marginTop: "auto" }}>
+          Skip for now — continue as guest
+        </GhostBtn>
       </div>
     );
 
@@ -133,7 +129,8 @@ export function Login({ onAuth }) {
           Everything works.<br />Nothing leaves this phone.
         </h1>
         <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.55, marginBottom: 18 }}>
-          Decode quotes, set your goal, save cars — all stored on this device only.
+          Decode quotes, set your goal, save cars — all stored on this device only. Add an account later and everything
+          you've built comes with you.
         </div>
         {[
           ["✓", C.green, "Deal Decoder — full, unlimited", C.ink],
@@ -148,7 +145,7 @@ export function Login({ onAuth }) {
         ))}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
           <PrimaryBtn onClick={() => onAuth("guest")} height={50}>START DECODING →</PrimaryBtn>
-          <GhostBtn onClick={() => setView("welcome")}>Create an account instead</GhostBtn>
+          <GhostBtn onClick={() => setView("account")}>Sign in with a code instead</GhostBtn>
         </div>
       </div>
     );

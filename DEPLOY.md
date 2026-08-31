@@ -33,21 +33,62 @@ Environment Variables, or `vercel env add`):
 
 ## 2. Supabase (logins)
 
+Sign-in is a one-time code to a **phone number or an email** — no
+password, no social buttons. Both channels are `signInWithOtp` +
+`verifyOtp`; the parse that decides which channel a typed identifier is
+lives in `src/lib/supabase.js` and is unit-tested.
+
 1. Create a project at supabase.com (free tier is fine to start).
 2. Settings -> API: copy the project URL and anon key into the env vars.
-3. Authentication -> Providers:
-   - Email: enable, magic link only (the app never asks for a password).
-   - Google: create an OAuth client in Google Cloud Console, paste
-     client ID/secret. Redirect URL is shown in the Supabase provider UI.
-   - Apple: requires an Apple Developer account ($99/yr); defer until the
-     iOS wrapper exists — the button simulates gracefully meanwhile.
-4. Authentication -> URL Configuration: set Site URL to the production
-   domain and add the Vercel preview URLs to redirect allow list.
-5. The app auto-detects the session on load (`getSession`); magic-link
-   and OAuth redirects land back at the app origin and sign in.
+3. Authentication -> Providers -> **Email**: enable. This is the channel
+   that works out of the box — no third party, no spend.
+   - To send a 6-digit code instead of only a magic link, edit
+     Authentication -> Emails -> **Magic Link** template to include
+     `{{ .Token }}`. Supabase ships that template with the link only; the
+     app's code field stays empty-handed until the token is in there.
+     (The link still works — either way in signs the buyer in.)
+4. Authentication -> Providers -> **Phone**: enable, and configure an SMS
+   provider (Twilio, MessageBird, Vonage, Textlocal). **No SMS is sent
+   until this is done** — Supabase has no built-in SMS sender, so the
+   phone half of the login screen returns "provider not enabled" and the
+   app tells the buyer to use email instead. This is a paid third-party
+   step; email OTP carries the product until it's set up.
+   - Twilio is the usual choice: Account SID, Auth Token, and a Message
+     Service SID pasted into the Supabase Phone provider form.
+5. Authentication -> URL Configuration: set Site URL to the production
+   domain and add the Vercel preview URLs to the redirect allow list
+   (needed for the magic-link path; the code path doesn't redirect).
+6. The app auto-detects the session on load (`getSession`) and on
+   `onAuthStateChange`, so a verified code signs the buyer in in place.
+
+### Deferred: social sign-in and subscriptions
+
+Google/Apple OAuth is **off** and hidden — waiting on certification (an
+Apple Developer account at $99/yr, a Google Cloud OAuth client) and the
+paid subscription work it goes with. Nothing was deleted:
+
+- `signInWithProvider()` in `src/lib/supabase.js` is intact.
+- The buttons live in `src/components/Login.jsx` behind
+  `socialLoginEnabled`.
+- Set `VITE_ENABLE_SOCIAL_LOGIN=true` (Vercel env or `.env.local`) and
+  enable the provider in Supabase to bring both back — no code change.
 
 Guest mode never touches Supabase — that's by design (first-class guest
 door, everything on-device).
+
+## 2b. The guest door
+
+Guest is the default way in, not a downgrade: the decoder, the goal, the
+garage and the scripts all run on-device with no sign-in. `ACCOUNT_REQUIRED`
+in `src/lib/account.js` is the single table of what genuinely needs an
+account — today just alerts (they fire with the app closed) and browser-
+extension sync (a second device has to find the same garage). Reaching for
+one of those opens `SignInPrompt` at that moment, and signing in **keeps
+everything the guest already built** — `adoptSession` only ever adds.
+
+`dealPass` sits in the table at `false` while subscriptions are deferred;
+flip it to `true` when checkout writes an entitlement keyed to a Supabase
+user id, and the gate works with no other change.
 
 ## 3. PostHog (metrics)
 

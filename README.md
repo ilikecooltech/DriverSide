@@ -72,11 +72,15 @@ src/
                              buildScripts() with live numbers, parseVehicle()
   data/archetypes.js         5 questions w/ purpose cues, 7 archetypes, routing
   lib/
-    supabase.js              auth client (env-driven; simulated with no keys)
+    supabase.js              auth client (env-driven; simulated with no keys),
+                             phone/email OTP send + verify, identifier parsing
+    account.js               what actually needs an account — the guest-door table
     analytics.js             PostHog wrapper + event taxonomy (no-op with no key)
   components/
     ui.jsx                   Chip, Kicker, Corners, PrimaryBtn, DecodeLine, Stepper
-    Login.jsx                4b — welcome/email/guest/done, Supabase-backed
+    Login.jsx                4b — guest-first door; account = phone/email OTP
+    OtpForm.jsx              the shared code door: identifier → 6-digit → session
+    SignInPrompt.jsx         the account ask, at the point of need (guest → account)
     CaptureFlow.jsx          1c — capture → scanning → count-up reveal
     ManualEntry.jsx          30-second form → buildDeal() → full decode
     Decoder.jsx              1a — renders any deal; gates scripts/comps/practice
