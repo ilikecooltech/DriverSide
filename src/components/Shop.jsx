@@ -4,7 +4,7 @@ import {
   BODY_TYPES, FILTER_META, profileFor, defaultFilters, matchScore,
   valueLabel, SAMPLE_INVENTORY, filterInventory, segmentMedian, formatFilterValue,
 } from "../data/shopping.js";
-import { Kicker, PrimaryBtn, useDesktop } from "./ui.jsx";
+import { Kicker, PrimaryBtn, useDesktop, VehicleImage } from "./ui.jsx";
 
 /* Shop — where the journey starts. The goal picks what you see; the
    filters are the six that change the answer, not forty that don't.
@@ -161,50 +161,55 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
           const val = valueLabel(v.price, median);
           const tone = val.tone === "good" ? C.green : val.tone === "warn" ? C.amber : C.inkSoft;
           return (
-            <div key={id} style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, position: "relative" }}>
+            <div key={id} style={{ border: `1px solid ${C.line}`, background: C.card, position: "relative" }}>
+              {/* Full-bleed above the content — the photo is the first
+                  thing a shopper reads, and the badge rides over it. */}
+              <VehicleImage src={v.image} alt={[v.year, v.make, v.model, v.trim].filter(Boolean).join(" ")} />
               {i === 0 && (
                 <div style={{ position: "absolute", top: -1, right: -1, background: C.green, color: "#fff", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", padding: "4px 8px" }}>BEST MATCH</div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15.5, fontWeight: 700 }}>
-                    {v.year} {v.make} {v.model} {v.trim}
+              <div style={{ padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15.5, fontWeight: 700 }}>
+                      {v.year} {v.make} {v.model} {v.trim}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
+                      {Math.round(v.miles / 1000)}k mi · {v.bodyType}
+                      {v.certified ? " · CPO" : ""}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
-                    {Math.round(v.miles / 1000)}k mi · {v.bodyType}
-                    {v.certified ? " · CPO" : ""}
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 800 }}>{fmt(v.price)}</div>
+                    <div style={{ fontFamily: mono, fontSize: 11, fontWeight: 800, color: v.match >= 80 ? C.green : C.amber }}>
+                      MATCH {v.match}/100
+                    </div>
                   </div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 800 }}>{fmt(v.price)}</div>
-                  <div style={{ fontFamily: mono, fontSize: 11, fontWeight: 800, color: v.match >= 80 ? C.green : C.amber }}>
-                    MATCH {v.match}/100
-                  </div>
+                <div style={{ height: 4, background: C.line, margin: "10px 0 8px" }}>
+                  <div style={{ width: `${v.match}%`, height: 4, background: v.match >= 80 ? C.green : C.amber }} />
                 </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5 }}>
+                  <span style={{ color: tone, fontWeight: 700 }}>{val.text}</span>
+                  <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, marginLeft: "auto" }}>
+                    {v.days ? `${v.days} days on lot` : ""}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{v.dealer}</div>
+                <button
+                  onClick={() => !saved && onSave({ ...v, id })}
+                  disabled={saved}
+                  style={{
+                    width: "100%", minHeight: 40, marginTop: 10, cursor: saved ? "default" : "pointer",
+                    border: `1px solid ${saved ? C.green : C.accent}`,
+                    background: saved ? C.greenBg : C.card,
+                    color: saved ? C.green : C.accentText,
+                    fontSize: 12.5, fontWeight: 700,
+                  }}
+                >
+                  {saved ? "✓ IN YOUR GARAGE" : "SAVE TO GARAGE"}
+                </button>
               </div>
-              <div style={{ height: 4, background: C.line, margin: "10px 0 8px" }}>
-                <div style={{ width: `${v.match}%`, height: 4, background: v.match >= 80 ? C.green : C.amber }} />
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5 }}>
-                <span style={{ color: tone, fontWeight: 700 }}>{val.text}</span>
-                <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, marginLeft: "auto" }}>
-                  {v.days ? `${v.days} days on lot` : ""}
-                </span>
-              </div>
-              <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{v.dealer}</div>
-              <button
-                onClick={() => !saved && onSave({ ...v, id })}
-                disabled={saved}
-                style={{
-                  width: "100%", minHeight: 40, marginTop: 10, cursor: saved ? "default" : "pointer",
-                  border: `1px solid ${saved ? C.green : C.accent}`,
-                  background: saved ? C.greenBg : C.card,
-                  color: saved ? C.green : C.accentText,
-                  fontSize: 12.5, fontWeight: 700,
-                }}
-              >
-                {saved ? "✓ IN YOUR GARAGE" : "SAVE TO GARAGE"}
-              </button>
             </div>
           );
         })}
