@@ -87,6 +87,17 @@ await btn(/SOUNDS LIKE ME/).click();
 
 // ═══ SHOP — the new landing. Goal drives the list. ═══
 await expect("SHOPPING FOR YOUR GOAL", "shop lands after onboarding");
+
+/* ═══ GOAL FLOW — "Change goal" must open the editor AND let you out ═══
+   The editor used to be a one-way door: five questions with no cancel, so
+   tapping "Change goal" by accident meant re-answering all of them. */
+await btn(/Change goal/).click();
+await expect("Five taps", "'Change goal' opens the goal editor");
+await btn(/Keep my current goal/).click();
+await expect("SHOPPING FOR YOUR GOAL", "backing out returns to Shop");
+await expect("Fresh Start", "backing out keeps the existing goal");
+await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
+
 await expect("Fresh Start", "shop shows the goal");
 await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 5000 });
 await expect("SAMPLE INVENTORY", "sample data labeled honestly");

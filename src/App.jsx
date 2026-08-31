@@ -239,6 +239,9 @@ export default function App() {
     return (
       <Shell desktop={desktop} context="YOUR GOAL">
         <Onboarding
+          /* Only cancellable when a goal already exists — otherwise there
+             is nothing to fall back to and Shop has nothing to rank. */
+          onCancel={onboarded ? () => setEditingGoal(false) : undefined}
           onConfirm={(arch, key) => {
             setArchetype({ ...arch, key });
             setOnboarded(true);
