@@ -38,7 +38,10 @@ export function SignInPrompt({ capability, onSignedIn, onClose }) {
         Your garage, goal and decoded quotes stay exactly as they are. Signing in adds to them — it never starts you over.
       </div>
 
-      <OtpForm onDone={() => onSignedIn()} sendLabel="SEND MY CODE" autoFocus />
+      {/* OtpForm hands back the verified session (null when there are no
+          Supabase keys and the code step is simulated) — App needs it to
+          adopt the user rather than wait on onAuthChange. */}
+      <OtpForm onDone={(session) => onSignedIn(session)} sendLabel="SEND MY CODE" autoFocus />
 
       <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.06em", color: C.inkSoft, marginTop: 14, lineHeight: 1.6 }}>
         USED FOR SIGN-IN AND THE ALERTS YOU CHOOSE. NOTHING ELSE.

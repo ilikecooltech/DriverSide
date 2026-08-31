@@ -222,9 +222,15 @@ export default function App() {
       <Shell desktop={desktop} context="SIGN IN">
         <SignInPrompt
           capability={signInAsk.capability}
-          onSignedIn={() => {
-            // adoptSession (via onAuthChange) flips auth to "account" and
-            // keeps every local thing the guest built.
+          onSignedIn={(session) => {
+            /* onAuthChange normally flips auth to "account" for us, but it
+               never fires with no Supabase keys set — and the gate would
+               then re-ask forever. Adopt the session here when we have one
+               and fall back to a bare flip when we don't, so the prototype
+               converts too. Either way this only adds: nothing the guest
+               built is cleared. */
+            if (session?.user) adoptSession(session.user);
+            else setAuth("account");
             track("account_gate_converted", { capability: signInAsk.capability });
             const after = signInAsk.after;
             setSignInAsk(null);

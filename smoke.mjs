@@ -257,6 +257,18 @@ await expect("PHONE OR EMAIL", "gate offers the same code door");
 await btn(/keep going as a guest/).click();
 await expect("BROWSING AS A GUEST", "dismissing the gate returns to the profile");
 
+/* And the gate must actually convert. With no Supabase keys the code step
+   is simulated, so sending is the whole flow — but the guest still has to
+   come back as an account holder, with the garage they built intact. This
+   is the regression: relying on onAuthChange alone left the prototype a
+   guest forever and re-asked on every tap. */
+await btn(/Price drops on garage cars/).click();
+await page.fill("#ds-identifier", "buyer@example.com");
+await btn(/SEND MY CODE/).click();
+await page.waitForTimeout(500);
+await expectNot("BROWSING AS A GUEST", "signing in through the gate clears guest mode");
+await expect("78701", "the guest's setup survives the upgrade");
+
 // ═══ DESKTOP ═══
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.waitForTimeout(400);
