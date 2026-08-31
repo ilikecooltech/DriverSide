@@ -53,23 +53,44 @@ export default async function handler(req, res) {
 
 /* MarketCheck returns two photo arrays and only one of them is safe.
 
-   `photo_links` points at the dealer's own CDN: it dies the moment the
-   listing comes down, which is exactly when a shopper is most likely to
-   still be looking at our saved copy. `photo_links_cached` is
-   MarketCheck's own cached copy — it stays up and it's fast.
+   `photo_links` points at the dealer's own CDN and 404s once the listing
+   comes down; `photo_links_cached` is MarketCheck's copy and keeps
+   resolving. So we read the cached array only, never the raw one.
 
-   So we read the cached array only. A listing with no cached photo
-   returns null and the card shows a placeholder, which is honest and
-   quiet; a broken <img> is neither. https-only, because the app is
-   served over https and a mixed-content image would be blocked. */
-export function cachedPhoto(listing) {
+   The catch: MarketCheck embeds our api_key *inside* the cached URL.
+   Returning it as-is would publish the secret in this endpoint's JSON and
+   in every <img src> on the results page. So the key (and any other
+   query) is stripped here, and the client is handed a same-origin
+   /api/photo path that re-attaches it server-side. No upstream URL — and
+   therefore no secret — ever reaches the browser.
+
+   https-only, because a mixed-content image would be blocked anyway. */
+
+const PHOTO_HOST = "mc-api.marketcheck.com";
+
+/* The bare upstream URL, key stripped. Exported for tests. */
+export function cachedPhotoUpstream(listing) {
   const cached =
     listing?.media?.photo_links_cached ||
     listing?.photo_links_cached ||
     null;
   if (!Array.isArray(cached)) return null;
   const first = cached.find((u) => typeof u === "string" && u.trim().startsWith("https://"));
-  return first ? first.trim() : null;
+  if (!first) return null;
+  try {
+    const u = new URL(first.trim());
+    if (u.hostname !== PHOTO_HOST) return null;
+    u.search = "";
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/* What the client actually gets: a same-origin path, never a secret. */
+export function cachedPhoto(listing) {
+  const upstream = cachedPhotoUpstream(listing);
+  return upstream ? `/api/photo?src=${encodeURIComponent(upstream)}` : null;
 }
 
 /* MarketCheck body types are messier than our six buckets. */

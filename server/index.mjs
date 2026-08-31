@@ -132,25 +132,73 @@ app.get("/api/shop", async (req, res) => {
   }
 });
 
+/* Image proxy — parity with api/photo.js. The api_key never leaves this
+   process; the client only ever sees /api/photo?src=... */
+app.get("/api/photo", async (req, res) => {
+  const PHOTO_PREFIX = "/v2/image/cache/";
+  let u = null;
+  try {
+    u = new URL(String(req.query.src || ""));
+    if (u.protocol !== "https:" || u.hostname !== "mc-api.marketcheck.com" || !u.pathname.startsWith(PHOTO_PREFIX)) u = null;
+    else u.search = "";
+  } catch { u = null; }
+  if (!u) return res.status(400).json({ error: "Unsupported image source" });
+  if (!KEY) return res.status(404).end();
+  u.searchParams.set("api_key", KEY);
+  try {
+    const r = await fetch(u.toString());
+    if (!r.ok) return res.status(r.status === 429 ? 429 : 404).end();
+    const type = r.headers.get("content-type") || "";
+    if (!type.startsWith("image/")) return res.status(415).end();
+    res.setHeader("Content-Type", type);
+    res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=604800, immutable");
+    return res.status(200).send(Buffer.from(await r.arrayBuffer()));
+  } catch {
+    return res.status(502).end();
+  }
+});
+
+
 /* MarketCheck returns two photo arrays and only one of them is safe.
 
-   `photo_links` points at the dealer's own CDN: it dies the moment the
-   listing comes down, which is exactly when a shopper is most likely to
-   still be looking at our saved copy. `photo_links_cached` is
-   MarketCheck's own cached copy — it stays up and it's fast.
+   `photo_links` points at the dealer's own CDN and 404s once the listing
+   comes down; `photo_links_cached` is MarketCheck's copy and keeps
+   resolving. So we read the cached array only, never the raw one.
 
-   So we read the cached array only. A listing with no cached photo
-   returns null and the card shows a placeholder, which is honest and
-   quiet; a broken <img> is neither. https-only, because the app is
-   served over https and a mixed-content image would be blocked. */
-function cachedPhoto(listing) {
+   The catch: MarketCheck embeds our api_key *inside* the cached URL.
+   Returning it as-is would publish the secret in this endpoint's JSON and
+   in every <img src> on the results page. So the key (and any other
+   query) is stripped here, and the client is handed a same-origin
+   /api/photo path that re-attaches it server-side. No upstream URL — and
+   therefore no secret — ever reaches the browser.
+
+   https-only, because a mixed-content image would be blocked anyway. */
+
+const PHOTO_HOST = "mc-api.marketcheck.com";
+
+/* The bare upstream URL, key stripped. Exported for tests. */
+function cachedPhotoUpstream(listing) {
   const cached =
     listing?.media?.photo_links_cached ||
     listing?.photo_links_cached ||
     null;
   if (!Array.isArray(cached)) return null;
   const first = cached.find((u) => typeof u === "string" && u.trim().startsWith("https://"));
-  return first ? first.trim() : null;
+  if (!first) return null;
+  try {
+    const u = new URL(first.trim());
+    if (u.hostname !== PHOTO_HOST) return null;
+    u.search = "";
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/* What the client actually gets: a same-origin path, never a secret. */
+function cachedPhoto(listing) {
+  const upstream = cachedPhotoUpstream(listing);
+  return upstream ? `/api/photo?src=${encodeURIComponent(upstream)}` : null;
 }
 
 function normalizeBody(raw) {
