@@ -14,6 +14,17 @@ const STRIP_OFFSET = 92;
 export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
   const [openLine, setOpenLine] = useState(null);
   const [script, setScript] = useState(0);
+  const [copied, setCopied] = useState(null);
+
+  /* The free script has to be genuinely usable, which means copyable —
+     a script you cannot paste into a text message is a screenshot. */
+  const copyScript = (i, body) => {
+    /* Async rejection, so .catch — a denied clipboard should not throw
+       into the page. The script stays selectable regardless. */
+    navigator.clipboard?.writeText(body)?.catch(() => {});
+    setCopied(i);
+    setTimeout(() => setCopied((c) => (c === i ? null : c)), 1600);
+  };
   const [price, setPrice] = useState(deal.asking);
   const [trade, setTrade] = useState(deal.trade.offer);
   /* Start with no market read rather than a placeholder median. The
@@ -297,45 +308,77 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
           </div>
         </div>
 
-        {/* scripts — Deal Pass gate */}
+        {/* ── scripts ──────────────────────────────────────────────
+            The first script is free, in full, and copyable — always. It
+            is the anchor, the one that comes out of your mouth first, and
+            handing it over is what makes the paywall an argument rather
+            than a toll booth. The rest are blurred behind the pass: you
+            can see they exist and count them, you cannot read them. */}
         <div ref={refs.say} style={{ padding: "22px 0 88px" }}>
-          {hasPass ? (
-            <div style={{ background: C.ink, color: "#fff", padding: 16 }}>
-              <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", opacity: 0.7, marginBottom: 10 }}>
-                YOUR SCRIPTS — {market ? "LIVE MARKET NUMBERS" : "SAY IT LIKE THIS"}
-              </div>
-              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                {scripts.map((s, i) => (
-                  <button key={s.t} onClick={() => setScript(i)}
-                    style={{ flex: 1, minHeight: 40, border: "none", cursor: "pointer", fontSize: 11.5, fontWeight: 700, background: script === i ? "#fff" : "rgba(255,255,255,0.12)", color: script === i ? C.ink : "#fff", padding: 4 }}>
-                    {s.t}
-                  </button>
-                ))}
-              </div>
-              <div style={{ fontSize: 14, lineHeight: 1.6, fontStyle: "italic", minHeight: 110 }}>{scripts[script].body}</div>
-              <button onClick={() => onGate("practice")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 12, border: "1px dashed rgba(255,255,255,0.35)", background: "none", color: "#fff", padding: "10px 12px", cursor: "pointer" }}>
-                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, textAlign: "left" }}>Practice this conversation</span>
-                <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: "rgba(255,255,255,0.14)", padding: "3px 7px" }}>COMING SOON</span>
-              </button>
+          <div style={{ background: C.ink, color: "#fff", padding: 16 }}>
+            <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", opacity: 0.7, marginBottom: 10 }}>
+              YOUR SCRIPTS — {market ? "LIVE MARKET NUMBERS" : "SAY IT LIKE THIS"}
             </div>
-          ) : (
-            <div style={{ background: C.ink, color: "#fff", padding: 16 }}>
-              <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", opacity: 0.7, marginBottom: 10 }}>YOUR SCRIPTS — SAY IT LIKE THIS</div>
-              <div style={{ fontSize: 13.5, lineHeight: 1.6, opacity: 0.9, marginBottom: 4 }}>
-                Three scripts, written from this sheet: remove the junk, beat your pre-approval rate, and the walk-away — each with {market ? "this morning's live market numbers" : "your deal's numbers"} in your mouth.
-              </div>
-              <div style={{ fontSize: 13.5, lineHeight: 1.6, fontStyle: "italic", opacity: 0.55, margin: "8px 0 14px" }}>
-                “Before we go further — I need the ████ fee, ████, and ████ off this sheet, and the tax line re-run on…”
-              </div>
-              <button onClick={() => onGate("scripts")} style={{ width: "100%", minHeight: 48, border: "none", background: "#fff", color: C.ink, fontFamily: heading, fontWeight: 600, fontSize: 16, letterSpacing: "0.03em", cursor: "pointer" }}>
-                GENERATE MY SCRIPTS · DEAL PASS
+
+            {scripts.map((sc, i) => {
+              const locked = i > 0 && !hasPass;
+              return (
+                <div key={sc.t} style={{ borderTop: i ? "1px solid rgba(255,255,255,0.14)" : "none", paddingTop: i ? 14 : 0, marginTop: i ? 14 : 0, position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.1em", opacity: 0.75 }}>{sc.t.toUpperCase()}</span>
+                    {i === 0 && (
+                      <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: "0.06em", background: C.onNavySuccess, color: C.ink, padding: "2px 6px" }}>FREE</span>
+                    )}
+                    {!locked && (
+                      <button
+                        onClick={() => copyScript(i, sc.body)}
+                        style={{ marginLeft: "auto", minHeight: 32, padding: "0 10px", border: "1px solid rgba(255,255,255,0.35)", background: "none", color: "#fff", fontFamily: mono, fontSize: 9.5, letterSpacing: "0.06em", cursor: "pointer" }}
+                      >
+                        {copied === i ? "COPIED" : "COPY"}
+                      </button>
+                    )}
+                  </div>
+                  <div
+                    aria-hidden={locked ? "true" : undefined}
+                    style={{
+                      fontSize: 14, lineHeight: 1.6, fontStyle: "italic",
+                      filter: locked ? "blur(5px)" : "none",
+                      userSelect: locked ? "none" : "auto",
+                      pointerEvents: locked ? "none" : "auto",
+                    }}
+                  >
+                    {sc.body}
+                  </div>
+                  {locked && (
+                    <button
+                      onClick={() => onGate("scripts")}
+                      aria-label={`Unlock ${sc.t} with the Deal Pass`}
+                      style={{
+                        position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                        border: "none", background: "rgba(22,35,59,0.35)", color: "#fff",
+                        fontFamily: mono, fontSize: 10.5, letterSpacing: "0.08em", fontWeight: 700, cursor: "pointer",
+                      }}
+                    >
+                      🔒 DEAL PASS
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {!hasPass && (
+              <button onClick={() => onGate("scripts")} style={{ width: "100%", minHeight: 48, marginTop: 16, border: "none", background: "#fff", color: C.ink, fontFamily: heading, fontWeight: 600, fontSize: 16, letterSpacing: "0.03em", cursor: "pointer" }}>
+                UNLOCK THE REST · DEAL PASS
               </button>
-              <button onClick={() => onGate("practice")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, border: "1px dashed rgba(255,255,255,0.35)", background: "none", color: "#fff", padding: "10px 12px", cursor: "pointer" }}>
-                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, textAlign: "left" }}>Practice this conversation</span>
-                <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: "rgba(255,255,255,0.14)", padding: "3px 7px" }}>DEAL PASS</span>
-              </button>
-            </div>
-          )}
+            )}
+
+            <button onClick={() => onGate("practice")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, border: "1px dashed rgba(255,255,255,0.35)", background: "none", color: "#fff", padding: "10px 12px", cursor: "pointer" }}>
+              <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, textAlign: "left" }}>Practice this conversation</span>
+              <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: "rgba(255,255,255,0.14)", padding: "3px 7px" }}>
+                {hasPass ? "COMING SOON" : "DEAL PASS"}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -347,8 +390,8 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
           </div>
           <div style={{ fontFamily: mono, fontSize: 15, fontWeight: 800 }}>{dm ? fmt(dm.fair) : fmt(levLo)}</div>
         </div>
-        <PrimaryBtn onClick={() => (hasPass ? go("say") : onGate("scripts"))} style={{ flex: 1, width: "auto" }}>
-          {hasPass ? "BUILD MY COUNTER-OFFER →" : "GET MY SCRIPTS →"}
+        <PrimaryBtn onClick={() => go("say")} style={{ flex: 1, width: "auto" }}>
+          {hasPass ? "BUILD MY COUNTER-OFFER →" : "SEE MY FREE SCRIPT →"}
         </PrimaryBtn>
       </div>
     </div>

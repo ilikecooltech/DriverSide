@@ -190,30 +190,63 @@ await btn(/SEE THE FULL DECODE/).click();
 await page.waitForSelector("text=YOUR LEVERAGE", { timeout: 3000 });
 await expect("ASK TO REMOVE", "grouped problems");
 await expect("Anchor your counter at or below", "market anchor free");
-await expect("GENERATE MY SCRIPTS · DEAL PASS", "scripts gated");
-await expectNot("prep fee, nitrogen", "script text stays gated");
+await expect("UNLOCK THE REST · DEAL PASS", "the rest of the scripts are gated");
 await expect("Negative equity rolled into new loan", "harm prevention free");
 await page.screenshot({ path: "/tmp/shot-decoder.png" });
 
-// gate: scripts -> paywall sells with the buyer's own number
-await btn(/GENERATE MY SCRIPTS/).click();
-await expect("$2,174", "paywall uses own leverage");
-await btn("Not now").click();
+/* The split: the anchor script is free, in full and copyable, and the
+   ones after it are blurred behind the pass. "The truth is free, the
+   words are paid" — but the first words are free too, or the paywall is
+   a toll booth instead of an argument. */
+await expect("FREE", "first script is badged free");
+const blurredScripts = await page.evaluate(() =>
+  [...document.querySelectorAll("div")].filter((d) => getComputedStyle(d).filter.includes("blur")).length
+);
+if (blurredScripts < 1) throw new Error("locked scripts should be blurred");
 
-// gate: second decode -> buy -> pass active
+// gate: scripts -> paywall sells with the buyer's own numbers
+await btn(/UNLOCK THE REST/).click();
+await expect("WHAT THIS SHEET IS HIDING", "paywall leads with the value receipt");
+await expect("On the table right now", "receipt totals the free findings");
+await expect("FOUNDING PRICE", "founding price tag");
+await expect("buys words, never the truth", "free/paid boundary printed in the paywall");
+await expect("TEST MODE", "no payment provider wired yet, and it says so");
+
+// a code nobody issued is refused, and refused identically
+await page.fill("#ds-promo", "FOUNDER-AAAA-AA");
+await btn(/^APPLY$/).click();
+await page.waitForSelector("text=CODE NOT RECOGNIZED", { timeout: 8000 });
+await expect("CODE NOT RECOGNIZED", "unissued code refused");
+await expectNot("DEAL PASS ACTIVE", "refused code unlocks nothing");
+
+// buy (test mode) -> pass active, with a pass to give
+await btn(/UNLOCK THIS DEAL/).click();
+await page.waitForSelector("text=DEAL PASS ACTIVE", { timeout: 10000 });
+await expect("DEAL PASS ACTIVE — THIS DEAL", "paid pass activates");
+await expect("YOU HAVE 1 PASS TO GIVE", "every pass carries one to give");
+await expect("CLAIM THE PROMISE", "the guarantee is a button, not a form");
+await btn(/BACK TO MY SHEET/).click();
+/* The proof the pass took is the scripts, not a badge: on the decoder
+   the masthead carries the quote controls rather than the context label. */
+await page.waitForTimeout(600);
+const stillBlurred = await page.evaluate(() =>
+  [...document.querySelectorAll("div")].filter((d) => getComputedStyle(d).filter.includes("blur")).length
+);
+if (stillBlurred !== 0) throw new Error(`scripts should unblur once passed (${stillBlurred} still blurred)`);
+await expectNot("UNLOCK THE REST", "the unlock CTA is gone once passed");
+
+// scripts now live, with live-market numbers and named comps.
+// With a pass in hand a second decode no longer hits the gate.
 await btn("+ NEW QUOTE").click();
-await expect("second decode is where the negotiation actually starts", "second-decode gate");
-await btn(/GET THE DEAL PASS/).click();
-await expect("· DEAL PASS", "pass badge");
-
-// scripts now live, with live-market numbers and named comps
+await expect("Photograph it", "second decode goes straight to capture with a pass");
 await btn(/PHOTOGRAPH THE QUOTE/).click();
 await page.waitForSelector("text=and up to $3,761", { timeout: 12000 });
 await btn(/SEE THE FULL DECODE/).click();
 // Wait for the market data itself, not a header that renders before it.
 await page.waitForSelector("text=hondaoflakejackson", { timeout: 10000 });
 await expect("LIVE MARKET NUMBERS", "scripts unlocked with live numbers");
-await btn("Walk away").click();
+/* The scripts stack rather than tab now, so every unlocked one is on the
+   page at once — no tab to click. */
 await expect("over the live market median", "walk-away uses live median");
 await expect("My number is $30,934", "anchors at live median");
 

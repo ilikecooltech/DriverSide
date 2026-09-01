@@ -9,6 +9,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { SNAPSHOT } from "./snapshot.mjs";
+import passHandler from "../api/pass.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -97,6 +98,11 @@ app.get("/api/market", async (req, res) => {
     res.json({ ...SNAPSHOT, note: "Live request failed — showing snapshot" });
   }
 });
+
+/* Deal Pass money endpoint. Mounted straight from the serverless handler
+   rather than reimplemented, so local and production cannot drift on the
+   one surface where that would matter. */
+app.all("/api/pass", (req, res) => passHandler(req, res));
 
 /* Inventory search for the Shop tab — parity with api/shop.js. */
 app.get("/api/shop", async (req, res) => {
