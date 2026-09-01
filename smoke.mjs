@@ -41,7 +41,7 @@ await page.goto(BASE, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* private mode */ } });
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForTimeout(900); // let the async session check settle
-if (!(await body()).includes("THE ONLY ONE AT THE TABLE")) {
+if (!(await body()).includes("You brought backup")) {
   const profile = btn("Profile");
   if (await profile.count()) {
     await profile.click();
@@ -51,20 +51,27 @@ if (!(await body()).includes("THE ONLY ONE AT THE TABLE")) {
   }
 }
 
-// ═══ LOGIN — guest is a first-class door, no social buttons ═══
-await expect("THE ONLY ONE AT THE TABLE ON YOUR SIDE", "login welcome");
+// ═══ START — five doors, guest-first, one account line ═══
+await expect("Buying a car? Good. You brought backup.", "start hero");
+await expect("Start wherever you are.", "journey doors");
+await expect("NO ACCOUNT NEEDED", "trust chips");
 await expectNot("Continue with Google", "social login is deferred");
 await expectNot("Continue with Apple", "social login is deferred");
-/* The account door is a one-time code to a phone or an email. Walk in and
-   back out — sending a real code needs Supabase keys the smoke run has no
-   business using. */
-await btn(/Sign in with a code/).click();
+/* The duplicate-CTA bug this screen replaced: the old landing offered
+   "SKIP FOR NOW" and "continue as guest" as separate buttons for the same
+   door. Neither phrase may come back. */
+await expectNot("Skip for now", "no duplicate guest CTA");
+await expectNot("continue as guest", "no duplicate guest CTA");
+/* The account is one quiet line. Walk into it and back out — sending a
+   real code needs Supabase keys the smoke run has no business using. */
+await btn(/^Sign in$/).click();
 await expect("PHONE OR EMAIL", "otp identifier step");
 await btn(/SEND MY CODE/).click();
 await expect("Enter your phone number or email", "otp rejects an empty field");
-await btn(/Skip for now — continue as guest/).click();
-await expect("Nothing leaves this phone", "guest landing");
-await btn(/START DECODING/).click();
+await btn(/Not now — just let me in/).click();
+await expect("Start wherever you are.", "back to the doors, still a guest");
+/* Shop is the one door that needs a goal first — it ranks against one. */
+await btn(/SHOP BY GOAL/).click();
 
 // ═══ ONBOARDING — cues, routing, edit path ═══
 await expect("Five taps", "Q1 cue");
@@ -80,6 +87,23 @@ await btn(/SOUNDS LIKE ME/).click();
 
 // ═══ SHOP — the new landing. Goal drives the list. ═══
 await expect("SHOPPING FOR YOUR GOAL", "shop lands after onboarding");
+
+/* ═══ GOAL FLOW — "Change goal" must open the editor AND let you out ═══
+   The editor used to be a one-way door: five questions with no cancel, so
+   tapping "Change goal" by accident meant re-answering all of them. */
+await btn(/Change goal/).click();
+await expect("Five taps", "'Change goal' opens the goal editor");
+await btn(/Keep my current goal/).click();
+await expect("SHOPPING FOR YOUR GOAL", "backing out returns to Shop");
+await expect("Fresh Start", "backing out keeps the existing goal");
+await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
+
+/* ═══ HOME LOGO — the wordmark is a real control ═══ */
+await page.getByRole("button", { name: "DriverSide — home" }).click();
+await expect("Start wherever you are.", "wordmark returns to Start");
+await page.getByRole("button", { name: "Shop", exact: true }).click();
+await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
+
 await expect("Fresh Start", "shop shows the goal");
 await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 5000 });
 await expect("SAMPLE INVENTORY", "sample data labeled honestly");
@@ -158,7 +182,7 @@ await page.screenshot({ path: "/tmp/shot-profile.png" });
 await btn("Profile").click();
 
 // ═══ AT THE DEALER — decode, gates, modes, outcomes ═══
-await btn("At the Dealer").click();
+await btn("Dealer").click();
 await expect("Photograph it", "capture state");
 await btn(/PHOTOGRAPH THE QUOTE/).click();
 await page.waitForSelector("text=and up to $3,761", { timeout: 12000 });
@@ -233,7 +257,7 @@ await expect("Repeat your number once, then be quiet", "callback coaching");
 await btn(/GARAGE CARS/).click();
 await expect("SCORED FOR", "walked routes to garage");
 
-await btn("At the Dealer").click();
+await btn("Dealer").click();
 await btn("MODES").click();
 await btn(/I signed/).click();
 await expect("VS THEIR FIRST SHEET, YOU KEPT", "receipt");
@@ -241,11 +265,14 @@ await expect("The receipt is the product", "receipt sign-off");
 
 // ═══ PERSISTENCE — the garage and setup survive a reload ═══
 await page.reload({ waitUntil: "networkidle" });
-await btn(/continue as guest/).click();
-await btn(/START DECODING/).click();
-await expect("SHOPPING FOR YOUR GOAL", "goal persisted — no re-onboarding");
-await btn(/^Garage/).click();
+/* A returning buyer lands on the resume card, not on onboarding. It
+   reports only what is actually on the device — no invented price-drop
+   history — and drops them straight back into the Garage. */
+await expect("WELCOME BACK", "returning user sees the resume card");
+await btn(/Continue in your Garage/).click();
 await expect("SCORED FOR", "garage persisted across reload");
+await page.getByRole("button", { name: "Shop", exact: true }).click();
+await expect("SHOPPING FOR YOUR GOAL", "goal persisted — no re-onboarding");
 await btn("Profile").click();
 await expect("78701", "setup persisted across reload");
 

@@ -8,7 +8,11 @@ import { Kicker, Corners, PrimaryBtn, GhostBtn } from "./ui.jsx";
    framed as a reading of the buyer's own answers. The edit path changes
    any single answer without redoing the flow. */
 
-export function Onboarding({ onConfirm }) {
+/* `onCancel` is optional and is only passed when there is already a goal
+   to go back to. Without it, "Change goal" was a trap: five questions
+   with no way out, so anyone who tapped it by accident had to re-answer
+   the lot to get back into the app. */
+export function Onboarding({ onConfirm, onCancel }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [editing, setEditing] = useState(false);
@@ -55,11 +59,18 @@ export function Onboarding({ onConfirm }) {
             );
           })}
         </div>
-        {step > 0 && (
-          <button onClick={() => setStep(Math.max(0, step - 1))} style={{ marginTop: "auto", alignSelf: "flex-start", minHeight: 44, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0 }}>
-            ← Back
-          </button>
-        )}
+        <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          {step > 0 && (
+            <button onClick={() => setStep(Math.max(0, step - 1))} style={{ minHeight: 44, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+              ← Back
+            </button>
+          )}
+          {onCancel && (
+            <button onClick={onCancel} style={{ minHeight: 44, background: "none", border: "none", color: C.accentText, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0 }}>
+              Keep my current goal
+            </button>
+          )}
+        </div>
       </div>
     );
 
@@ -101,6 +112,11 @@ export function Onboarding({ onConfirm }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto", paddingTop: 18 }}>
         <PrimaryBtn onClick={() => onConfirm(arch, archKey)} height={50}>SOUNDS LIKE ME →</PrimaryBtn>
         <GhostBtn onClick={() => setEditing(true)}>Not quite — change an answer</GhostBtn>
+        {onCancel && (
+          <button onClick={onCancel} style={{ minHeight: 44, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            Keep my current goal
+          </button>
+        )}
       </div>
     </div>
   );

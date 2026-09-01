@@ -15,6 +15,18 @@
       :focus { outline: none; }
       :focus-visible { outline: 2px solid #5980a6; outline-offset: 2px; }
       ::selection { background: rgba(89, 128, 166, 0.3); }
+      /* Start screen: the dealer door's live dot. Motion is a signal that
+         something is happening now, so it is the one animation here — and
+         it stops entirely for anyone who asked for less. */
+      @keyframes ds-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.45; transform: scale(0.82); }
+      }
+      .ds-pulse { animation: ds-pulse 2.4s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) {
+        .ds-pulse { animation: none; }
+        * { transition: none !important; }
+      }
     </style>
   </head>
   <body>

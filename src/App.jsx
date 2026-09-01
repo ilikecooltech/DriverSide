@@ -7,7 +7,9 @@ import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
 import { useDesktop } from "./components/ui.jsx";
-import { Login } from "./components/Login.jsx";
+import { Start } from "./components/Start.jsx";
+import { BottomNav, NAV_HEIGHT, isDealerSessionLive } from "./components/BottomNav.jsx";
+import { Finance } from "./components/Finance.jsx";
 import { Onboarding } from "./components/Onboarding.jsx";
 import { Shop } from "./components/Shop.jsx";
 import { Garage } from "./components/Garage.jsx";
@@ -34,7 +36,7 @@ const DEFAULT_SETUP = {
 };
 
 const CONTEXT = {
-  shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER",
+  start: "START", shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER", finance: "YOUR MONEY",
   capture: "AT THE DEALER", manual: "MANUAL ENTRY", decoder: "DEAL DECODER",
   paywall: "DEAL PASS", modes: "MODE", prep: "PREP MODE · TONIGHT",
   table: "TABLE MODE · ONE HAND", walked: "WATCHING · DAY 2",
@@ -102,9 +104,17 @@ export default function App() {
     saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, hasPass });
   }, [archetype, setup, cars, connections, hasPass]);
 
-  const handleAuth = (kind) => {
-    setAuth(kind);
-    track("auth_completed", { kind, configured: authConfigured });
+  /* A door press is the whole entry: become a guest, and land where they
+     said they were. `profile` is the interim home for "getting my money
+     ready" until Phase 2 builds the Finance tab — APR, term and trade
+     already live on the setup sheet, so it is a real destination. */
+  const enterFromStart = (dest) => {
+    setAuth("guest");
+    track("auth_completed", { kind: "guest", configured: authConfigured });
+    track("start_door_opened", { dest: dest?.tab || "shop" });
+    if (dest?.tab === "profile") { setShowProfile(true); return; }
+    if (dest?.tab) setTab(dest.tab);
+    if (dest?.dealView) setDealView(dest.dealView);
   };
 
   const handleSignOut = async () => {
@@ -165,6 +175,23 @@ export default function App() {
     return false;
   };
 
+  /* Home is a navigation, not a reset.
+
+     It closes whatever is layered on top — the profile sheet, the goal
+     editor, the account ask — and lands on Start. It deliberately does
+     not touch `deal`, `dealView`, the garage or the setup, so a decode
+     left mid-session is exactly where it was when you come back to the
+     Dealer tab (the same way the bottom bar already behaves). Closing the
+     goal editor is what "Keep my current goal" does: the saved goal is
+     untouched, only the unsaved answers in flight go. */
+  const goHome = () => {
+    setShowProfile(false);
+    setEditingGoal(false);
+    setSignInAsk(null);
+    setTab("start");
+    track("nav_home");
+  };
+
   /* ---- deal flow ---- */
   const openPaywall = (context, back, after = null) => {
     setGate({ context, back, after });
@@ -196,14 +223,44 @@ export default function App() {
   const leverage = deal ? deal.junkTotal + deal.taxError : null;
   const archetypeKey = archetype?.key || null;
 
-  /* ---- gates before the main app ---- */
-  if (!auth)
-    return <Shell desktop={desktop}><Login onAuth={handleAuth} /></Shell>;
+  /* ---- gates before the main app ----
 
-  if (!onboarded || editingGoal)
+     Phase 1: the Start screen is the only thing between arriving and
+     working. Picking a door enters as a guest and lands on that surface —
+     there is no account step and no interstitial in between.
+
+     Onboarding now gates Shop alone. Shop ranks against a stated goal so
+     it genuinely needs one; the Garage, the decoder and the setup sheet do
+     not, and making someone answer five questions to photograph a
+     worksheet they are holding would be exactly the funnel this screen
+     exists to remove. Anyone who reaches Shop later still gets asked. */
+  if (!auth)
     return (
-      <Shell desktop={desktop} context="YOUR GOAL">
+      /* "START", not the Shell's default "SIGN IN" label — on this screen
+         that label read as a second account CTA competing with the one
+         quiet line at the bottom. */
+      <Shell desktop={desktop} context="START">
+        <Start
+          cars={cars}
+          archetypeName={archetype?.name || null}
+          setup={setup}
+          onEnter={(dest) => enterFromStart(dest)}
+          onSignedIn={(session) => {
+            if (session?.user) adoptSession(session.user);
+            else setAuth("account");
+            track("auth_completed", { kind: "account", configured: authConfigured });
+          }}
+        />
+      </Shell>
+    );
+
+  if ((tab === "shop" && !onboarded) || editingGoal)
+    return (
+      <Shell desktop={desktop} context="YOUR GOAL" onHome={goHome}>
         <Onboarding
+          /* Only cancellable when a goal already exists — otherwise there
+             is nothing to fall back to and Shop has nothing to rank. */
+          onCancel={onboarded ? () => setEditingGoal(false) : undefined}
           onConfirm={(arch, key) => {
             setArchetype({ ...arch, key });
             setOnboarded(true);
@@ -219,7 +276,7 @@ export default function App() {
      already inside and goes back to what they were doing either way. */
   if (signInAsk)
     return (
-      <Shell desktop={desktop} context="SIGN IN">
+      <Shell desktop={desktop} context="SIGN IN" onHome={goHome}>
         <SignInPrompt
           capability={signInAsk.capability}
           onSignedIn={(session) => {
@@ -246,9 +303,12 @@ export default function App() {
 
   const dv = tab === "dealer" ? dealView : tab;
 
+  const dealerSessionActive = isDealerSessionLive(deal, dealView);
+
   return (
     <Shell
       desktop={desktop}
+      onHome={goHome}
       masthead={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {tab === "dealer" && dealView === "decoder" && (
@@ -279,23 +339,20 @@ export default function App() {
           </button>
         </div>
       }
-      tabs={
-        <div style={{ display: "flex", borderBottom: `1px solid ${C.line}` }}>
-          {[["shop", "Shop"], ["garage", `Garage${cars.length ? ` (${cars.length})` : ""}`], ["dealer", "At the Dealer"]].map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => { setTab(k); setShowProfile(false); }}
-              aria-current={tab === k && !showProfile ? "page" : undefined}
-              style={{
-                flex: 1, minHeight: 42, cursor: "pointer", fontSize: 12.5, fontWeight: 700,
-                border: "none", borderBottom: tab === k && !showProfile ? `2px solid ${C.ink}` : "2px solid transparent",
-                background: "none", color: tab === k && !showProfile ? C.ink : C.inkSoft,
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      bottomNav={
+        <BottomNav
+          tab={showProfile ? null : tab}
+          desktop={desktop}
+          /* Real state, not decoration: the dot means a decode is open and
+             has not reached an outcome yet. */
+          dealerLive={dealerSessionActive}
+          onGo={(k) => {
+            setShowProfile(false);
+            setTab(k);
+            if (k === "dealer" && !deal) setDealView("capture");
+            track("nav_tab", { tab: k });
+          }}
+        />
       }
     >
       {showProfile ? (
@@ -310,6 +367,30 @@ export default function App() {
         />
       ) : (
         <>
+          {/* Start is a destination now, not just the front door. Its doors
+              move between tabs instead of entering the app. */}
+          {tab === "start" && (
+            <Start
+              cars={cars}
+              archetypeName={archetype?.name || null}
+              setup={setup}
+              onEnter={(dest) => {
+                if (dest?.tab === "profile") { setShowProfile(true); return; }
+                if (dest?.tab) setTab(dest.tab);
+                if (dest?.dealView) setDealView(dest.dealView);
+                track("start_door_opened", { dest: dest?.tab || "shop" });
+              }}
+              onSignedIn={(session) => {
+                if (session?.user) adoptSession(session.user);
+                else setAuth("account");
+              }}
+            />
+          )}
+
+          {tab === "finance" && (
+            <Finance setup={setup} onEditTerms={() => setShowProfile(true)} />
+          )}
+
           {tab === "shop" && (
             <Shop
               archetypeKey={archetypeKey} archetypeName={archetype?.name}
@@ -390,18 +471,61 @@ export default function App() {
 
 const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
 
-function Shell({ masthead, tabs, context, children, desktop }) {
+/* The masthead, the Start screen and the bottom bar are one system: card
+   surfaces with hairline rules bracketing the paper content between them,
+   heading type for names, mono micro-labels for state.
+
+   The wordmark is the home control when `onHome` is given — a real button
+   with an accessible name, so it is reachable by keyboard and announced
+   as "DriverSide, home" rather than read as decoration. Before anyone has
+   entered the app there is nowhere to go home to, so it stays plain text. */
+function Wordmark({ onHome }) {
+  const type = { fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em", color: C.ink };
+  if (!onHome) return <span style={type}>DriverSide</span>;
+  return (
+    <button
+      onClick={onHome}
+      aria-label="DriverSide — home"
+      style={{
+        ...type,
+        background: "none",
+        border: "none",
+        /* Padding buys the 44px hit area the wordmark's cap height cannot;
+           the negative margin gives the header its spacing back. */
+        padding: "12px 8px 12px 0",
+        margin: "-12px 0",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{ width: 7, height: 7, background: C.accent, display: "block", flexShrink: 0 }}
+      />
+      DriverSide
+    </button>
+  );
+}
+
+function Shell({ masthead, tabs, bottomNav, context, children, desktop, onHome }) {
   return (
     <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
-      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none" }}>
-        <div style={{ padding: "14px 16px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${C.line}` }}>
-          <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em" }}>DriverSide</span>
+      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
+        {/* Card surface + hairline, matching the bottom bar at the other
+            end of the screen. */}
+        <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: C.card, borderBottom: `1px solid ${C.line}` }}>
+          <Wordmark onHome={onHome} />
           {masthead || (
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>{context || "SIGN IN"}</span>
+            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
           )}
         </div>
         {tabs}
         {children}
+        {/* The nav is fixed, so the column reserves its height rather than
+            letting content scroll underneath it. */}
+        {bottomNav}
       </div>
     </div>
   );
