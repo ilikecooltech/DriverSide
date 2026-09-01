@@ -19,7 +19,19 @@ const FOUNDING_ACTIVE = true;
    code is only ever checked one at a time, and only the server can mint
    one. */
 const BATCHES = ["FOUNDER", "CREATOR", "PARTNER", "MAKEGOOD", "GIFT"];
-const CODE_RE = /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-([A-Z0-9]{4})-([A-Z0-9]{2})$/;
+/* BATCH-DDRRRR-CCCC. The body carries the issue day (2 chars, base-30)
+   and 4 random chars; the tail is a 4-character HMAC.
+
+   Both widths were found by testing rather than chosen. A 2-char check
+   scanned across the batch window gave a random guess roughly a 1-in-30
+   chance of validating — fine as a typo check, useless as a credential;
+   reading the day out of the code instead means exactly one signature to
+   verify, over 30^4 (~810k). And 2 random chars gave only 900 codes per
+   batch-day, which collided inside a 40-code batch; 4 gives 810k. */
+const CODE_RE = /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-([A-Z0-9]{6})-([A-Z0-9]{4})$/;
+const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ2345678"; // exactly 30, no look-alikes
+const RADIX = 30;
+const DAY_CYCLE = RADIX * RADIX; // 900 days, far beyond any batch window
 
 /* Batch lifetimes. Nothing is evergreen — every batch has an end date, so
    a code that leaks onto Reddit dies on its own. Gift codes are the
@@ -33,12 +45,26 @@ function secret() {
   return process.env.PROMO_SIGNING_SECRET || "driverside-dev-only-not-a-secret";
 }
 
-const b32 = (buf, n) =>
-  [...buf].map((b) => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[b % 30]).join("").slice(0, n);
+const b32 = (buf, n) => [...buf].map((b) => ALPHA[b % ALPHA.length]).join("").slice(0, n);
 
-function checkFor(batch, body, issuedDay) {
-  const h = crypto.createHmac("sha256", secret()).update(`${batch}:${body}:${issuedDay}`).digest();
-  return b32(h, 2);
+function checkFor(batch, body) {
+  const h = crypto.createHmac("sha256", secret()).update(`${batch}:${body}`).digest();
+  return b32(h, 4);
+}
+
+const encodeDay = (day) => {
+  const v = ((day % DAY_CYCLE) + DAY_CYCLE) % DAY_CYCLE;
+  return ALPHA[Math.floor(v / RADIX)] + ALPHA[v % RADIX];
+};
+
+/* Recover the issue day from its 2-char encoding, given today. Exact for
+   any batch window shorter than DAY_CYCLE. */
+function decodeDay(enc, today) {
+  const hi = ALPHA.indexOf(enc[0]);
+  const lo = ALPHA.indexOf(enc[1]);
+  if (hi < 0 || lo < 0 || hi >= RADIX || lo >= RADIX) return null;
+  const v = hi * RADIX + lo;
+  return today - (((today - v) % DAY_CYCLE) + DAY_CYCLE) % DAY_CYCLE;
 }
 
 const dayNow = () => Math.floor(Date.now() / 86400000);
@@ -46,8 +72,8 @@ const dayNow = () => Math.floor(Date.now() / 86400000);
 /* Mint a code. Server-only — there is no client path to this. */
 export function issueCode(batch, issuedDay = dayNow()) {
   if (!BATCHES.includes(batch)) throw new Error("unknown batch");
-  const body = b32(crypto.randomBytes(8), 4);
-  return `${batch}-${body}-${checkFor(batch, body, issuedDay)}`;
+  const body = encodeDay(issuedDay) + b32(crypto.randomBytes(8), 4);
+  return `${batch}-${body}-${checkFor(batch, body)}`;
 }
 
 /* Validate one code. Returns { ok, batch, reason }. Never enumerates.
@@ -63,14 +89,20 @@ export function validateCode(code, now = Date.now()) {
   if (!m) return { ok: false, reason: "malformed" };
   const [, batch, body, check] = m;
 
+  /* Constant-shape comparison: signature first, then expiry, and one
+     reason for every failure so the endpoint cannot be used to tell a
+     forged code from an expired one. */
+  if (checkFor(batch, body) !== check) return { ok: false, reason: "invalid_or_expired" };
+
   const today = Math.floor(now / 86400000);
+  const issuedDay = decodeDay(body.slice(0, 2), today);
+  if (issuedDay === null) return { ok: false, reason: "invalid_or_expired" };
+
   const window = BATCH_DAYS[batch] ?? 90;
-  for (let d = today; d >= today - window; d--) {
-    if (checkFor(batch, body, d) === check) {
-      return { ok: true, batch, code: s, issuedDay: d, expiresDay: d + window };
-    }
-  }
-  return { ok: false, reason: "invalid_or_expired" };
+  const expiresDay = issuedDay + window;
+  if (today > expiresDay || today < issuedDay) return { ok: false, reason: "invalid_or_expired" };
+
+  return { ok: true, batch, code: s, issuedDay, expiresDay };
 }
 
 /* ── REDEMPTION STORE ───────────────────────────────────────────────────

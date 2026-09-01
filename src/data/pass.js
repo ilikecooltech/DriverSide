@@ -20,6 +20,13 @@ export const PRICING = {
      later rise to $29 is a kept promise instead of a rug-pull. */
   foundingActive: true,
   guaranteeMultiple: 10,
+  /* HELD. The $290 promise and the one-tap refund are built and tested
+     but deliberately not surfaced — Darrell wants it introduced later,
+     when it lands as a proof point rather than as reassurance nobody
+     asked for. Flip to true and the guarantee copy returns to the
+     paywall and the refund button to the active pass; nothing else has
+     to change. */
+  guaranteeActive: false,
 };
 
 export const dollars = (cents) => `$${Math.round(cents / 100).toLocaleString()}`;
@@ -131,7 +138,8 @@ export function valueReceipt(deal, median) {
    the bundle. Validation belongs to the server (api/pass.js); this half
    is only the shape and the batch rules.
 
-   Format: BATCH-XXXX-XX (batch, random, check). GIFT codes carry the
+   Format: BATCH-DDRRRR-CCCC (batch, issue-day + random, 4-char check).
+   GIFT codes carry the
    chain depth so a gifted pass cannot mint an unlimited tree. */
 
 export const PROMO_BATCHES = ["FOUNDER", "CREATOR", "PARTNER", "MAKEGOOD", "GIFT"];
@@ -148,7 +156,7 @@ export function batchOf(code) {
 }
 
 export function isWellFormedCode(code) {
-  return /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-[A-Z0-9]{4}-[A-Z0-9]{2}$/.test(
+  return /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-[A-Z0-9]{6}-[A-Z0-9]{4}$/.test(
     String(code || "").trim().toUpperCase()
   );
 }
@@ -182,7 +190,12 @@ export function canGift(pass) {
 
 /* Refunds are a button, not a form — the guarantee is worthless if
    claiming it is work. Only a paid pass can be refunded; a comped one has
-   nothing to return. */
+   nothing to return.
+
+   Gated on guaranteeActive: while the promise is held we must not offer
+   the refund either, or we would be advertising a guarantee we chose not
+   to state. The plumbing underneath stays live. */
 export function canRefund(pass) {
+  if (!PRICING.guaranteeActive) return false;
   return Boolean(pass?.active) && !isComped(pass.tag) && !pass.refundedAt;
 }

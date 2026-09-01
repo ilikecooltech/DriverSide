@@ -16,7 +16,7 @@ import { Garage } from "./components/Garage.jsx";
 import { CaptureFlow } from "./components/CaptureFlow.jsx";
 import { ManualEntry } from "./components/ManualEntry.jsx";
 import { Decoder } from "./components/Decoder.jsx";
-import { Paywall, PassActive } from "./components/Paywall.jsx";
+import { Paywall, PassActive, PassAnchor } from "./components/Paywall.jsx";
 import { activationTag, isComped, passLabel, canGift, canRefund, activePriceCents, valueReceipt } from "./data/pass.js";
 import { ModeSwitch, PrepMode, TableMode } from "./components/Modes.jsx";
 import { Walked, Receipt, FreshStart } from "./components/Outcomes.jsx";
@@ -307,12 +307,42 @@ export default function App() {
     }
   };
 
-  /* ---- deal flow ---- */
-  const openPaywall = (context, back, after = null) => {
-    setGate({ context, back, after });
+  /* ── the paywall's one mount point ──────────────────────────────────
+     Every route to the paywall goes through here, so moving where it
+     lives is a change to the callers and not to the paywall.
+
+     Two callers today:
+       - the FRONT ANCHOR (Start screen, and the teaser above the dealer
+         flow) — awareness, deep-linked from outside the deal
+       - the SCRIPTS STEP, after the free anchor script — the conversion
+         point, where money is actually asked for
+     `backTab` exists because the anchor can be pressed from a tab that
+     is not Dealer, and "Not now" has to put people back where they were. */
+  const openPassFrom = (context, { backTab = null, back = null, after = null } = {}) => {
+    setGate({ context, back: back || (deal ? "decoder" : "capture"), after, backTab });
+    setShowProfile(false);
+    setTab("dealer");
     setDealView("paywall");
+    track("paywall_viewed", {
+      context,
+      leverage,
+      onTheTable: valueReceipt(deal, median).total,
+      hasDeal: Boolean(deal),
+    });
+  };
+
+  const closePaywall = () => {
+    if (gate.backTab) { setTab(gate.backTab); setDealView(deal ? "decoder" : "capture"); return; }
+    setDealView(gate.back || (deal ? "decoder" : "capture"));
+  };
+
+  /* ---- deal flow ---- */
+  /* In-deal gates (the scripts step, the second decode) route through the
+     same entry as the front anchor, so there is exactly one place that
+     decides what the paywall is and where it sits. */
+  const openPaywall = (context, back, after = null) => {
     track("gate_hit", { context });
-    track("paywall_viewed", { context, leverage: deal ? deal.junkTotal + deal.taxError : null });
+    openPassFrom(context, { back, after });
   };
   const startDecode = (d) => {
     const withPre = { ...d, preApproval: { apr: setup.apr, term: setup.term } };
@@ -359,6 +389,15 @@ export default function App() {
           cars={cars}
           archetypeName={archetype?.name || null}
           setup={setup}
+          hasPass={hasPass}
+          /* From the front door the pass anchor is also a way in: enter as
+             a guest first, exactly as pressing a door does, or the paywall
+             has nothing to mount on and the tap does nothing. */
+          onOpenPass={() => {
+            setAuth("guest");
+            track("auth_completed", { kind: "guest", configured: authConfigured });
+            openPassFrom("front-anchor", { backTab: "start" });
+          }}
           onEnter={(dest) => enterFromStart(dest)}
           onSignedIn={(session) => {
             if (session?.user) adoptSession(session.user);
@@ -489,6 +528,8 @@ export default function App() {
               cars={cars}
               archetypeName={archetype?.name || null}
               setup={setup}
+              hasPass={hasPass}
+              onOpenPass={() => openPassFrom("front-anchor", { backTab: "start" })}
               onEnter={(dest) => {
                 if (dest?.tab === "profile") { setShowProfile(true); return; }
                 if (dest?.tab) setTab(dest.tab);
@@ -521,6 +562,18 @@ export default function App() {
               onAdd={addCar} onRemove={removeCar} onRank={rankCar}
               onShop={() => setTab("shop")}
               onOpenDecode={() => { setTab("dealer"); setDealView(deal ? "decoder" : "capture"); }}
+            />
+          )}
+
+          {/* The front anchor again, where the offer is concrete: a guest
+              actually working a sheet sees what the pass is before the
+              scripts step asks for it. Not shown once passed, and not on
+              the paywall itself. */}
+          {tab === "dealer" && !hasPass && ["capture", "manual", "decoder"].includes(dealView) && (
+            <PassAnchor
+              variant="dealer"
+              receiptTotal={valueReceipt(deal, median).total}
+              onOpen={() => openPassFrom("front-anchor-dealer", { back: dealView })}
             />
           )}
 
@@ -570,7 +623,7 @@ export default function App() {
                 busy={passBusy} error={passError}
                 onBuy={buyPass}
                 onRedeem={redeemPass}
-                onClose={() => setDealView(gate.back || (deal ? "decoder" : "capture"))}
+                onClose={closePaywall}
               />
             )
           )}

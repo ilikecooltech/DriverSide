@@ -133,19 +133,32 @@ describe("gifting and refunds", () => {
     expect(canGift({ active: true, tag: "comped_founder", depth: 1 })).toBe(true);
   });
 
-  it("refunds only what was actually paid for", () => {
-    expect(canRefund(paid)).toBe(true);
-    expect(canRefund({ active: true, tag: "comped_founder" })).toBe(false);
-    expect(canRefund({ ...paid, refundedAt: Date.now() })).toBe(false);
-    expect(canRefund(null)).toBe(false);
+  it("offers no refund while the guarantee is held", () => {
+    // The $290 promise is built but deliberately unsurfaced. Offering the
+    // refund without stating the guarantee would advertise a promise we
+    // chose not to make.
+    expect(PRICING.guaranteeActive).toBe(false);
+    expect(canRefund(paid)).toBe(false);
+  });
+
+  it("refunds only what was actually paid for, once the promise is live", () => {
+    PRICING.guaranteeActive = true;
+    try {
+      expect(canRefund(paid)).toBe(true);
+      expect(canRefund({ active: true, tag: "comped_founder" })).toBe(false);
+      expect(canRefund({ ...paid, refundedAt: Date.now() })).toBe(false);
+      expect(canRefund(null)).toBe(false);
+    } finally {
+      PRICING.guaranteeActive = false;
+    }
   });
 });
 
 describe("promo codes", () => {
   it("recognises only the issued batches", () => {
-    expect(batchOf("FOUNDER-AB12-XY")).toBe("FOUNDER");
-    expect(batchOf("GIFT-AB12-XY")).toBe("GIFT");
-    expect(batchOf("HACKER-AB12-XY")).toBeNull();
+    expect(batchOf("FOUNDER-AB12CD-XYZW")).toBe("FOUNDER");
+    expect(batchOf("GIFT-AB12CD-XYZW")).toBe("GIFT");
+    expect(batchOf("HACKER-AB12CD-XYZW")).toBeNull();
     expect(batchOf("")).toBeNull();
   });
 
@@ -161,8 +174,8 @@ describe("promo codes", () => {
 
   it("rejects codes nobody issued, however well-formed", () => {
     // This is the whole security property: shape is not enough.
-    expect(validateCode("FOUNDER-AAAA-AA").ok).toBe(false);
-    expect(validateCode("FOUNDER-ZZZZ-ZZ").ok).toBe(false);
+    expect(validateCode("FOUNDER-AAAAAA-AAAA").ok).toBe(false);
+    expect(validateCode("FOUNDER-ZZZZZZ-ZZZZ").ok).toBe(false);
     expect(validateCode("").ok).toBe(false);
     expect(validateCode("nonsense").ok).toBe(false);
   });
@@ -176,14 +189,30 @@ describe("promo codes", () => {
 
   it("gives one indistinguishable failure, so it cannot be used as an oracle", () => {
     const reasons = new Set([
-      validateCode("FOUNDER-AAAA-AA").reason,
+      validateCode("FOUNDER-AAAAAA-AAAA").reason,
       validateCode(issueCode("GIFT"), Date.now() + 40 * 86400000).reason,
     ]);
     expect(reasons).toEqual(new Set(["invalid_or_expired"]));
   });
 
-  it("mints codes that are not guessable from each other", () => {
-    const codes = new Set(Array.from({ length: 40 }, () => issueCode("FOUNDER")));
-    expect(codes.size).toBe(40);
+  it("mints a whole batch without collisions", () => {
+    // 2 random chars gave 900 per batch-day and collided inside 40 codes.
+    // A batch has to be issuable in bulk without handing two people the
+    // same code.
+    const codes = new Set(Array.from({ length: 500 }, () => issueCode("FOUNDER")));
+    expect(codes.size).toBe(500);
+  });
+
+  it("does not validate forged codes at any meaningful rate", () => {
+    // The real security property. An earlier cut scanned a day-window
+    // against a 2-char check, which accepted roughly 1 random guess in
+    // 30 — enough to brute-force a free pass in seconds.
+    const A = "ABCDEFGHJKMNPQRSTUVWXYZ2345678";
+    const pick = (n) => Array.from({ length: n }, () => A[Math.floor(Math.random() * A.length)]).join("");
+    let accepted = 0;
+    for (let i = 0; i < 3000; i++) {
+      if (validateCode(`FOUNDER-${pick(6)}-${pick(4)}`).ok) accepted++;
+    }
+    expect(accepted).toBe(0);
   });
 });

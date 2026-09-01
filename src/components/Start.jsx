@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { C, mono, heading } from "../theme.js";
 import { JOURNEY_DOORS, resumeSummary, statsFromShop } from "../data/start.js";
 import { OtpForm } from "./OtpForm.jsx";
+import { PassAnchor } from "./Paywall.jsx";
 import { GhostBtn } from "./ui.jsx";
 
 /* Phase 1 — Start.
@@ -42,7 +43,7 @@ function writeCachedStats(zip, tiles) {
   }
 }
 
-export function Start({ cars, archetypeName, setup, onEnter, onSignedIn }) {
+export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass = false, onOpenPass }) {
   const zip = setup?.zip || "77471";
   const [tiles, setTiles] = useState(() => readCachedStats(zip) || []);
   const [signIn, setSignIn] = useState(false);
@@ -182,6 +183,13 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn }) {
           </button>
         ))}
       </div>
+
+      {/* ── the pass, anchored at the front ──
+          Below the doors on purpose: the doors are the guest-first
+          promise and nothing may displace them. But it sits above the
+          fold-end so the pass is introduced here rather than sprung at
+          the moment of asking for money. */}
+      {!hasPass && onOpenPass && <PassAnchor variant="start" onOpen={onOpenPass} />}
 
       {/* ── stats: only the ones we can source ── */}
       {tiles.length > 0 && (

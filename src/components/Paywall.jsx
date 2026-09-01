@@ -84,10 +84,13 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
           {busy === "buy" ? "OPENING CHECKOUT…" : `UNLOCK THIS DEAL — ${dollars(price)}`}
         </button>
 
-        <div style={{ margin: "10px 14px 0", background: C.greenBg, padding: "9px 11px", fontSize: 11.5, color: C.green, lineHeight: 1.5 }}>
-          <b style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em" }}>THE {dollars(guaranteeCents())} PROMISE</b> — if this pass
-          doesn&apos;t show you at least {dollars(guaranteeCents())} in this deal, it&apos;s free. Automatic. No forms.
-        </div>
+        {/* Held for now — see PRICING.guaranteeActive. */}
+        {PRICING.guaranteeActive && (
+          <div style={{ margin: "10px 14px 0", background: C.greenBg, padding: "9px 11px", fontSize: 11.5, color: C.green, lineHeight: 1.5 }}>
+            <b style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em" }}>THE {dollars(guaranteeCents())} PROMISE</b> — if this
+            pass doesn&apos;t show you at least {dollars(guaranteeCents())} in this deal, it&apos;s free. Automatic. No forms.
+          </div>
+        )}
 
         {/* ── promo ── */}
         <form
@@ -143,6 +146,76 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
           TEST MODE · NO PAYMENT PROVIDER CONFIGURED · NO CHARGE
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── The front anchor ───────────────────────────────────────────────────
+   The pass is introduced at the front of the experience so nobody meets
+   it for the first time at the moment of being asked for money. It is an
+   anchor, not a wall: it explains what the pass is and deep-links to the
+   same paywall, and every truth surface behind it stays open with no pass
+   and no account.
+
+   Two placements, one component. `variant="start"` sits on the Start
+   screen as its own presence; `variant="dealer"` rides above the dealer
+   flow as a persistent teaser once a guest is actually working a sheet,
+   where the offer is concrete rather than abstract. */
+export function PassAnchor({ variant = "start", onOpen, receiptTotal = 0 }) {
+  const dealer = variant === "dealer";
+
+  if (dealer)
+    return (
+      <button
+        onClick={onOpen}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+          background: C.neutralTint, border: "none", borderBottom: `1px solid ${C.line}`,
+          padding: "9px 16px", cursor: "pointer", fontFamily: "inherit", color: C.ink,
+        }}
+      >
+        <span aria-hidden="true" style={{ fontSize: 13 }}>🔒</span>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 12, lineHeight: 1.4 }}>
+          {receiptTotal > 0 ? (
+            <>
+              <b style={{ fontWeight: 700 }}>{fmt(receiptTotal)} found so far — free.</b>{" "}
+              The words to go get it are the Deal Pass.
+            </>
+          ) : (
+            <>
+              <b style={{ fontWeight: 700 }}>The decode is free.</b> The words to go get it are the Deal Pass.
+            </>
+          )}
+        </span>
+        <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em", color: C.accentText, whiteSpace: "nowrap" }}>
+          {dollars(activePriceCents())} →
+        </span>
+      </button>
+    );
+
+  return (
+    <div style={{ margin: "14px 16px 0", border: `1px solid ${C.line}`, background: C.card, padding: "13px 14px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <Kicker color={C.accentText} style={{ letterSpacing: "0.08em" }}>THE DEAL PASS</Kicker>
+        <span style={{ marginLeft: "auto", fontFamily: heading, fontWeight: 700, fontSize: 15, color: C.amber, display: "flex", alignItems: "baseline", gap: 4 }}>
+          {PRICING.foundingActive && <s style={{ color: C.inkSoft, fontWeight: 400, fontSize: 11.5 }}>{dollars(PRICING.listCents)}</s>}
+          {dollars(activePriceCents())}
+        </span>
+      </div>
+      <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 17, marginTop: 4, lineHeight: 1.2 }}>
+        Unlock the words for this deal.
+      </div>
+      <p style={{ fontSize: 12.5, color: C.inkSoft, lineHeight: 1.5, margin: "4px 0 0" }}>
+        Decoding, the live market check, The Table and your first script are free, forever, with no account. The pass
+        buys what to <i>say</i> — every script, an F&amp;I rebuttal per add-on, and counters that rewrite as the rounds
+        move.
+      </p>
+      <button
+        onClick={onOpen}
+        style={{ marginTop: 10, minHeight: 44, padding: "0 14px", border: `1px solid ${C.ink}`, background: C.card, color: C.ink, fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
+      >
+        WHAT THE PASS UNLOCKS →
+      </button>
     </div>
   );
 }

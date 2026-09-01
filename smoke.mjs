@@ -224,7 +224,10 @@ await btn(/UNLOCK THIS DEAL/).click();
 await page.waitForSelector("text=DEAL PASS ACTIVE", { timeout: 10000 });
 await expect("DEAL PASS ACTIVE — THIS DEAL", "paid pass activates");
 await expect("YOU HAVE 1 PASS TO GIVE", "every pass carries one to give");
-await expect("CLAIM THE PROMISE", "the guarantee is a button, not a form");
+/* The $290 promise and its one-tap refund are built but held off — see
+   PRICING.guaranteeActive. Neither may appear until it is switched on. */
+await expectNot("CLAIM THE PROMISE", "refund held while the guarantee is held");
+await expectNot("PROMISE", "no guarantee copy while it is held");
 await btn(/BACK TO MY SHEET/).click();
 /* The proof the pass took is the scripts, not a badge: on the decoder
    the masthead carries the quote controls rather than the context label. */
