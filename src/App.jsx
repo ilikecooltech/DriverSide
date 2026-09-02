@@ -6,7 +6,7 @@ import { IMPORTS, connectorName } from "./data/connections.js";
 import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
-import { useDesktop } from "./components/ui.jsx";
+import { useDesktop, PrimaryBtn } from "./components/ui.jsx";
 import { Start } from "./components/Start.jsx";
 import { BottomNav, NAV_HEIGHT, isDealerSessionLive } from "./components/BottomNav.jsx";
 import { Finance } from "./components/Finance.jsx";
@@ -16,7 +16,8 @@ import { Garage } from "./components/Garage.jsx";
 import { CaptureFlow } from "./components/CaptureFlow.jsx";
 import { ManualEntry } from "./components/ManualEntry.jsx";
 import { Decoder } from "./components/Decoder.jsx";
-import { Paywall } from "./components/Paywall.jsx";
+import { Paywall, PassActive, PassAnchor } from "./components/Paywall.jsx";
+import { activationTag, isComped, passLabel, canGift, canRefund, activePriceCents, valueReceipt } from "./data/pass.js";
 import { ModeSwitch, PrepMode, TableMode } from "./components/Modes.jsx";
 import { Walked, Receipt, FreshStart } from "./components/Outcomes.jsx";
 import { Profile } from "./components/Profile.jsx";
@@ -65,7 +66,16 @@ export default function App() {
   const [median, setMedian] = useState(null);
   const [mode, setMode] = useState("prep");
   const [decodeCount, setDecodeCount] = useState(0);
-  const [hasPass, setHasPass] = useState(Boolean(persisted.hasPass));
+  /* The pass is an object now, not a boolean: a comped pass and a paid
+     pass unlock the same things but must never look or report the same.
+     Older devices stored `hasPass: true`, so that migrates to a paid
+     pass rather than silently logging someone out of what they bought. */
+  const [pass, setPass] = useState(
+    persisted.pass || (persisted.hasPass ? { active: true, tag: "paid_full", at: null, depth: 0 } : null)
+  );
+  const [passBusy, setPassBusy] = useState(null);
+  const [passError, setPassError] = useState(null);
+  const hasPass = Boolean(pass?.active);
   const [gate, setGate] = useState({ context: "scripts", back: "decoder", after: null });
 
   const desktop = useDesktop();
@@ -101,8 +111,8 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, hasPass });
-  }, [archetype, setup, cars, connections, hasPass]);
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, pass });
+  }, [archetype, setup, cars, connections, pass]);
 
   /* A door press is the whole entry: become a guest, and land where they
      said they were. `profile` is the interim home for "getting my money
@@ -124,7 +134,7 @@ export default function App() {
     setAuth(null); setShowProfile(false); setTab("shop");
     setOnboarded(false); setArchetype(null); setCars([]); setConnections({});
     setSetup(DEFAULT_SETUP); setDeal(null); setDealView("capture");
-    setDecodeCount(0); setHasPass(false);
+    setDecodeCount(0); setPass(null);
   };
 
   /* ---- garage ---- */
@@ -192,12 +202,147 @@ export default function App() {
     track("nav_home");
   };
 
-  /* ---- deal flow ---- */
-  const openPaywall = (context, back, after = null) => {
-    setGate({ context, back, after });
+  /* ---- the Deal Pass ----
+
+     Guest-first is the hard constraint: buying must work with no account,
+     so the pass is device-bound and lives in the same local store as the
+     garage. An account signed in later adopts it; nothing here asks for
+     one.
+
+     Every activation is tagged paid_full / paid_founding / comped_<batch>
+     and carries `comped` explicitly, because the whole point of launching
+     with a paywall is measuring willingness to pay — a comped activation
+     counted as a conversion would make that number a lie. */
+  const activatePass = ({ kind, batch, depth = 0, context }) => {
+    const tag = activationTag({ kind, batch });
+    const next = { active: true, tag, at: Date.now(), depth, giftCode: null, giftedAt: null, refundedAt: null };
+    setPass(next);
+    track("pass_activated", {
+      tag,
+      comped: isComped(tag),
+      batch: batch || null,
+      priceCents: kind === "comped" ? 0 : activePriceCents(),
+      context: context || gate.context,
+      leverage,
+      onTheTable: valueReceipt(deal, median).total,
+    });
+    return next;
+  };
+
+  const callPass = async (params) => {
+    const q = new URLSearchParams(params);
+    const r = await fetch(`/api/pass?${q}`, { method: "POST" });
+    return r.json().catch(() => null);
+  };
+
+  const buyPass = async () => {
+    setPassError(null);
+    setPassBusy("buy");
+    try {
+      const r = await callPass({ action: "checkout" });
+      /* Live mode hands back a hosted Stripe Checkout URL — card details
+         never touch this app. Test mode returns no URL and the flow
+         completes locally so the rest of it stays exercisable. */
+      if (r?.url) { window.location.href = r.url; return; }
+      if (!r?.ok) { setPassError("Checkout is unavailable right now. Try again in a moment."); return; }
+      activatePass({ kind: "paid" });
+    } catch {
+      setPassError("Checkout is unavailable right now. Try again in a moment.");
+    } finally {
+      setPassBusy(null);
+    }
+  };
+
+  const redeemPass = async (code) => {
+    setPassError(null);
+    if (!String(code || "").trim()) { setPassError("ENTER A CODE FIRST"); return; }
+    setPassBusy("redeem");
+    try {
+      const r = await callPass({ action: "redeem", code: String(code).trim().toUpperCase() });
+      if (!r?.ok) {
+        /* One message for every failure — a caller must not be able to
+           tell a wrong code from an expired or spent one. */
+        setPassError("CODE NOT RECOGNIZED — CODES ARE SINGLE-USE AND EXPIRE");
+        track("promo_rejected", {});
+        return;
+      }
+      const depth = r.batch === "GIFT" ? 1 : 0;
+      activatePass({ kind: "comped", batch: r.batch, depth });
+    } catch {
+      setPassError("CODE NOT RECOGNIZED — CODES ARE SINGLE-USE AND EXPIRE");
+    } finally {
+      setPassBusy(null);
+    }
+  };
+
+  const giftPass = async () => {
+    if (!canGift(pass)) return;
+    setPassBusy("gift");
+    try {
+      const r = await callPass({ action: "gift", depth: String(pass.depth ?? 0) });
+      if (!r?.ok) return;
+      setPass((p) => ({ ...p, giftCode: r.code, giftedAt: Date.now() }));
+      /* writeText rejects asynchronously, so this needs a .catch and not
+         a try/catch — a blocked clipboard must not surface as an unhandled
+         rejection. The code is on screen either way. */
+      navigator.clipboard?.writeText(r.code)?.catch(() => {});
+      track("gift_code_minted", { tag: pass.tag, depth: r.depth });
+    } finally {
+      setPassBusy(null);
+    }
+  };
+
+  const refundPass = async () => {
+    if (!canRefund(pass)) return;
+    setPassBusy("refund");
+    try {
+      const r = await callPass({ action: "refund" });
+      if (!r?.ok) return;
+      /* The promise is the refund, not the removal: taking the money back
+         does not take the words back mid-negotiation. */
+      setPass((p) => ({ ...p, refundedAt: Date.now() }));
+      track("pass_refunded", { tag: pass.tag, priceCents: activePriceCents() });
+    } finally {
+      setPassBusy(null);
+    }
+  };
+
+  /* ── the paywall's one mount point ──────────────────────────────────
+     Every route to the paywall goes through here, so moving where it
+     lives is a change to the callers and not to the paywall.
+
+     Two callers today:
+       - the FRONT ANCHOR (Start screen, and the teaser above the dealer
+         flow) — awareness, deep-linked from outside the deal
+       - the SCRIPTS STEP, after the free anchor script — the conversion
+         point, where money is actually asked for
+     `backTab` exists because the anchor can be pressed from a tab that
+     is not Dealer, and "Not now" has to put people back where they were. */
+  const openPassFrom = (context, { backTab = null, back = null, after = null } = {}) => {
+    setGate({ context, back: back || (deal ? "decoder" : "capture"), after, backTab });
+    setShowProfile(false);
+    setTab("dealer");
     setDealView("paywall");
+    track("paywall_viewed", {
+      context,
+      leverage,
+      onTheTable: valueReceipt(deal, median).total,
+      hasDeal: Boolean(deal),
+    });
+  };
+
+  const closePaywall = () => {
+    if (gate.backTab) { setTab(gate.backTab); setDealView(deal ? "decoder" : "capture"); return; }
+    setDealView(gate.back || (deal ? "decoder" : "capture"));
+  };
+
+  /* ---- deal flow ---- */
+  /* In-deal gates (the scripts step, the second decode) route through the
+     same entry as the front anchor, so there is exactly one place that
+     decides what the paywall is and where it sits. */
+  const openPaywall = (context, back, after = null) => {
     track("gate_hit", { context });
-    track("paywall_viewed", { context, leverage: deal ? deal.junkTotal + deal.taxError : null });
+    openPassFrom(context, { back, after });
   };
   const startDecode = (d) => {
     const withPre = { ...d, preApproval: { apr: setup.apr, term: setup.term } };
@@ -244,6 +389,15 @@ export default function App() {
           cars={cars}
           archetypeName={archetype?.name || null}
           setup={setup}
+          hasPass={hasPass}
+          /* From the front door the pass anchor is also a way in: enter as
+             a guest first, exactly as pressing a door does, or the paywall
+             has nothing to mount on and the tap does nothing. */
+          onOpenPass={() => {
+            setAuth("guest");
+            track("auth_completed", { kind: "guest", configured: authConfigured });
+            openPassFrom("front-anchor", { backTab: "start" });
+          }}
           onEnter={(dest) => enterFromStart(dest)}
           onSignedIn={(session) => {
             if (session?.user) adoptSession(session.user);
@@ -374,6 +528,8 @@ export default function App() {
               cars={cars}
               archetypeName={archetype?.name || null}
               setup={setup}
+              hasPass={hasPass}
+              onOpenPass={() => openPassFrom("front-anchor", { backTab: "start" })}
               onEnter={(dest) => {
                 if (dest?.tab === "profile") { setShowProfile(true); return; }
                 if (dest?.tab) setTab(dest.tab);
@@ -409,6 +565,18 @@ export default function App() {
             />
           )}
 
+          {/* The front anchor again, where the offer is concrete: a guest
+              actually working a sheet sees what the pass is before the
+              scripts step asks for it. Not shown once passed, and not on
+              the paywall itself. */}
+          {tab === "dealer" && !hasPass && ["capture", "manual", "decoder"].includes(dealView) && (
+            <PassAnchor
+              variant="dealer"
+              receiptTotal={valueReceipt(deal, median).total}
+              onOpen={() => openPassFrom("front-anchor-dealer", { back: dealView })}
+            />
+          )}
+
           {tab === "dealer" && dealView === "capture" && (
             <CaptureFlow
               onSeeDecode={() => startDecode(MOCK_DEAL)}
@@ -433,15 +601,31 @@ export default function App() {
             <CaptureFlow onSeeDecode={() => startDecode(MOCK_DEAL)} onManual={() => setDealView("manual")} />
           )}
           {tab === "dealer" && dealView === "paywall" && (
-            <Paywall
-              leverage={leverage} context={gate.context}
-              onBuy={() => {
-                setHasPass(true);
-                setDealView(gate.after || gate.back || "decoder");
-                track("deal_pass_purchased", { context: gate.context, leverage });
-              }}
-              onClose={() => setDealView(gate.back || (deal ? "decoder" : "capture"))}
-            />
+            hasPass ? (
+              <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
+                <PassActive
+                  pass={pass}
+                  label={passLabel(pass)}
+                  giftCode={pass.giftCode}
+                  canGift={canGift(pass)}
+                  canRefund={canRefund(pass)}
+                  busy={passBusy}
+                  onGift={giftPass}
+                  onRefund={refundPass}
+                />
+                <PrimaryBtn onClick={() => setDealView(gate.after || gate.back || "decoder")} height={50}>
+                  BACK TO MY SHEET →
+                </PrimaryBtn>
+              </div>
+            ) : (
+              <Paywall
+                deal={deal} median={median} context={gate.context}
+                busy={passBusy} error={passError}
+                onBuy={buyPass}
+                onRedeem={redeemPass}
+                onClose={closePaywall}
+              />
+            )
           )}
           {tab === "dealer" && dealView === "modes" && deal && (
             <ModeSwitch mode={mode} setMode={setMode}

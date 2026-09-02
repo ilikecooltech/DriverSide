@@ -91,6 +91,49 @@ everything the guest already built** — `adoptSession` only ever adds.
 flip it to `true` when checkout writes an entitlement keyed to a Supabase
 user id, and the gate works with no other change.
 
+## 5. Stripe (the Deal Pass) — NOT YET CONFIGURED
+
+The paywall ships in **test mode**: `/api/pass?action=checkout` returns a
+simulated session and the whole flow (paywall → activation → gift code →
+refund) completes with no charge. The UI says `TEST MODE` on the paywall
+so nobody mistakes it for live.
+
+Going live is adding keys and a price — no app code changes:
+
+1. **Create a Stripe account** and stay in Test mode until the flow is
+   checked end to end.
+2. **Env vars** (Vercel → Settings → Environment Variables):
+
+   | Var | Scope | Why |
+   |---|---|---|
+   | `STRIPE_SECRET_KEY` | Production (+ Preview to test) | Server-side only. Its presence is the flag: set it and `/api/pass` switches from simulated to real hosted Checkout. **Never `VITE_`-prefixed** — that would publish it. |
+   | `STRIPE_WEBHOOK_SECRET` | Production | Verifies webhook signatures. |
+   | `PROMO_SIGNING_SECRET` | Production + Preview | Signs promo codes. Must be set before issuing any real code — the dev fallback invalidates every code if it ever changes. |
+
+   No publishable key is needed. We use **hosted Stripe Checkout**, so
+   card data never touches our app and there is no Stripe.js in the
+   bundle — which also keeps PCI scope at SAQ-A.
+
+3. **Product / price.** The endpoint currently creates the price inline
+   (`price_data`, $19 founding / $29 list, one-time). For reporting you
+   may prefer a real Product with two Prices in Stripe and to pass
+   `price: price_xxx` instead — a two-line change in `api/pass.js`.
+4. **Webhook.** Add an endpoint at `https://driverside.vercel.app/api/stripe-webhook`
+   subscribed to `checkout.session.completed` (and `charge.refunded` if
+   you want refunds reconciled). **This handler is not written yet** — it
+   is the one piece still to build, because a device-bound pass needs
+   somewhere to record "this session paid".
+5. **Redemption store.** Promo codes are validated by signature (so no
+   list of live codes exists anywhere), but *single-use* needs durable
+   storage. `api/pass.js` currently uses an in-memory `Set`, which only
+   holds for a warm serverless instance. Add Vercel KV or Postgres with
+   one table — `code, redeemed_at, device` — **before issuing real
+   codes**, or a code can be reused across cold starts.
+
+Until 4 and 5 exist, keep `STRIPE_SECRET_KEY` unset and the pass stays in
+test mode, which is safe to deploy and demo.
+
+
 ## 3. PostHog (metrics)
 
 1. Create a project at posthog.com (US cloud). Copy the project API key
