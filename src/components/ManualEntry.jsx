@@ -24,8 +24,10 @@ const F = [
   { k: "tradePayoff", label: "Your loan payoff ($0 if none)", ph: "12100", type: "tel" },
 ];
 
-export function ManualEntry({ onDecode, onBack }) {
-  const [v, setV] = useState({});
+/* `initial` pre-fills the car when the buyer came from a vehicle page
+   ("I'm at this dealer"), so they only type what's on the sheet. */
+export function ManualEntry({ onDecode, onBack, initial }) {
+  const [v, setV] = useState(() => ({ ...(initial || {}) }));
   const set = (k, val) => setV({ ...v, [k]: val });
 
   const ready = /^(19|20)\d{2}$/.test(v.year || "") && v.make && v.model && Number(v.asking) > 0;

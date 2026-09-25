@@ -60,7 +60,7 @@ function AddVehicle({ onAdd, onCancel }) {
   );
 }
 
-export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop }) {
+export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop, onOpen }) {
   const [adding, setAdding] = useState(false);
   const desktop = useDesktop();
   const profile = useMemo(() => profileFor(archetypeKey), [archetypeKey]);
@@ -160,6 +160,11 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                     <option key={i} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
+                {onOpen && (
+                  <button onClick={() => onOpen(g)} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
+                    DETAILS →
+                  </button>
+                )}
                 {g.decoded && (
                   <button onClick={onOpenDecode} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     QUOTE DECODED →
