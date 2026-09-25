@@ -9,7 +9,9 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { SNAPSHOT } from "./snapshot.mjs";
+import { toListing } from "./listing.mjs";
 import passHandler from "../api/pass.js";
+import demoLoginHandler from "../api/demo-login.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -104,7 +106,11 @@ app.get("/api/market", async (req, res) => {
    one surface where that would matter. */
 app.all("/api/pass", (req, res) => passHandler(req, res));
 
-/* Inventory search for the Shop tab — parity with api/shop.js. */
+/* Demo sign-in, mounted from the serverless handler for parity. */
+app.post("/api/demo-login", express.json(), (req, res) => demoLoginHandler(req, res));
+
+/* Inventory search for the Shop tab — parity with api/shop.js, sharing
+   its listing shape from ./listing.mjs. */
 app.get("/api/shop", async (req, res) => {
   const { zip = "77471", radius = "100", bodyType = "", maxPrice = "", maxMiles = "", minYear = "" } = req.query;
   if (!KEY) return res.json({ source: "none", listings: [], note: "Set MARKETCHECK_API_KEY for live inventory" });
@@ -112,6 +118,7 @@ app.get("/api/shop", async (req, res) => {
     const p = new URLSearchParams({
       api_key: KEY, car_type: "used", zip: String(zip), radius: String(radius),
       rows: "30", sort_by: "price", sort_order: "asc",
+      include_dealer_object: "true", include_build_object: "true",
     });
     if (bodyType) p.set("body_type", String(bodyType));
     if (maxPrice) p.set("price_range", `0-${Number(maxPrice)}`);
@@ -123,14 +130,7 @@ app.get("/api/shop", async (req, res) => {
     const listings = (data.listings || [])
       .filter((l) => l.price > 0 && l.build?.make && l.build?.model)
       .slice(0, 24)
-      .map((l) => ({
-        id: l.id || `${l.vin || l.build.make + l.build.model}-${l.price}`,
-        year: l.build.year, make: l.build.make, model: l.build.model, trim: l.build.trim || "",
-        price: l.price, miles: l.miles ?? 0, bodyType: normalizeBody(l.build.body_type),
-        dealer: l.dealer?.name || l.source || "Dealer",
-        days: l.dom_active ?? l.dom ?? 0, certified: Boolean(l.is_certified),
-        image: cachedPhoto(l),
-      }));
+      .map(toListing);
     res.json({ source: "live", count: data.num_found ?? listings.length, listings });
   } catch (err) {
     console.error("MarketCheck shop request failed:", err.message);
@@ -164,59 +164,6 @@ app.get("/api/photo", async (req, res) => {
   }
 });
 
-
-/* MarketCheck returns two photo arrays and only one of them is safe.
-
-   `photo_links` points at the dealer's own CDN and 404s once the listing
-   comes down; `photo_links_cached` is MarketCheck's copy and keeps
-   resolving. So we read the cached array only, never the raw one.
-
-   The catch: MarketCheck embeds our api_key *inside* the cached URL.
-   Returning it as-is would publish the secret in this endpoint's JSON and
-   in every <img src> on the results page. So the key (and any other
-   query) is stripped here, and the client is handed a same-origin
-   /api/photo path that re-attaches it server-side. No upstream URL — and
-   therefore no secret — ever reaches the browser.
-
-   https-only, because a mixed-content image would be blocked anyway. */
-
-const PHOTO_HOST = "mc-api.marketcheck.com";
-
-/* The bare upstream URL, key stripped. Exported for tests. */
-function cachedPhotoUpstream(listing) {
-  const cached =
-    listing?.media?.photo_links_cached ||
-    listing?.photo_links_cached ||
-    null;
-  if (!Array.isArray(cached)) return null;
-  const first = cached.find((u) => typeof u === "string" && u.trim().startsWith("https://"));
-  if (!first) return null;
-  try {
-    const u = new URL(first.trim());
-    if (u.hostname !== PHOTO_HOST) return null;
-    u.search = "";
-    return u.toString();
-  } catch {
-    return null;
-  }
-}
-
-/* What the client actually gets: a same-origin path, never a secret. */
-function cachedPhoto(listing) {
-  const upstream = cachedPhotoUpstream(listing);
-  return upstream ? `/api/photo?src=${encodeURIComponent(upstream)}` : null;
-}
-
-function normalizeBody(raw) {
-  const s = String(raw || "").toLowerCase();
-  if (s.includes("pickup") || s.includes("truck")) return "Pickup";
-  if (s.includes("van")) return "Minivan";
-  if (s.includes("hatch")) return "Hatchback";
-  if (s.includes("coupe") || s.includes("convertible")) return "Coupe";
-  if (s.includes("suv") || s.includes("crossover") || s.includes("sport utility")) return "SUV";
-  if (s.includes("sedan")) return "Sedan";
-  return "Sedan";
-}
 
 // Serve the built app if it exists (production mode).
 const dist = path.join(__dirname, "..", "dist");

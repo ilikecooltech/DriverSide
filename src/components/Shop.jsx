@@ -11,7 +11,7 @@ import { Kicker, PrimaryBtn, useDesktop, VehicleImage } from "./ui.jsx";
    Every card leads with match (does this serve YOUR need) and value
    (is it fairly priced), because that's the order the buyer thinks in. */
 
-export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onOpenGoal }) {
+export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onOpenGoal, onOpen, onResults }) {
   const profile = useMemo(() => profileFor(archetypeKey), [archetypeKey]);
   const [filters, setFilters] = useState(() => defaultFilters(profile, setup));
   const [listings, setListings] = useState(null);
@@ -48,6 +48,10 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
   }, [filters]);
 
   const median = useMemo(() => segmentMedian(listings || []), [listings]);
+
+  /* The vehicle page prices a car against this same result set, so it
+     hears about every new one. */
+  useEffect(() => { if (listings) onResults?.(listings); }, [listings]);
   const ranked = useMemo(() => {
     if (!listings) return [];
     return listings
@@ -162,9 +166,19 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
           const tone = val.tone === "good" ? C.green : val.tone === "warn" ? C.amber : C.inkSoft;
           return (
             <div key={id} style={{ border: `1px solid ${C.line}`, background: C.card, position: "relative" }}>
-              {/* Full-bleed above the content — the photo is the first
-                  thing a shopper reads, and the badge rides over it. */}
+              {/* The photo and the facts are one button into the vehicle
+                  page. Save stays outside it so the two never collide. */}
+              <button
+                onClick={() => onOpen?.({ ...v, id })}
+                aria-label={`See photos and details: ${[v.year, v.make, v.model, v.trim].filter(Boolean).join(" ")}`}
+                style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", textAlign: "left", cursor: "pointer", color: C.ink, font: "inherit" }}
+              >
               <VehicleImage src={v.image} alt={[v.year, v.make, v.model, v.trim].filter(Boolean).join(" ")} />
+              {v.photos?.length > 1 && (
+                <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(22,35,59,0.8)", color: "#fff", fontFamily: mono, fontSize: 9.5, letterSpacing: "0.08em", padding: "3px 7px" }}>
+                  {v.photos.length} PHOTOS
+                </div>
+              )}
               {i === 0 && (
                 <div style={{ position: "absolute", top: -1, right: -1, background: C.green, color: "#fff", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", padding: "4px 8px" }}>BEST MATCH</div>
               )}
@@ -196,6 +210,9 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
                   </span>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{v.dealer}</div>
+              </div>
+              </button>
+              <div style={{ padding: "0 14px 14px" }}>
                 <button
                   onClick={() => !saved && onSave({ ...v, id })}
                   disabled={saved}

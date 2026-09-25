@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { C, mono, heading, sans } from "./theme.js";
 import { MOCK_DEAL } from "./data/decode.js";
 import { toGarageItem } from "./data/shopping.js";
@@ -9,10 +9,12 @@ import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabas
 import { useDesktop, PrimaryBtn } from "./components/ui.jsx";
 import { Start } from "./components/Start.jsx";
 import { BottomNav, NAV_HEIGHT, isDealerSessionLive } from "./components/BottomNav.jsx";
-import { Finance } from "./components/Finance.jsx";
+import { Tools } from "./components/Tools.jsx";
+import { shareOut, garageShareText } from "./lib/share.js";
 import { Onboarding } from "./components/Onboarding.jsx";
 import { Shop } from "./components/Shop.jsx";
 import { Garage } from "./components/Garage.jsx";
+import { VehicleDetail } from "./components/VehicleDetail.jsx";
 import { CaptureFlow } from "./components/CaptureFlow.jsx";
 import { ManualEntry } from "./components/ManualEntry.jsx";
 import { Decoder } from "./components/Decoder.jsx";
@@ -23,6 +25,7 @@ import { Walked, Receipt, FreshStart } from "./components/Outcomes.jsx";
 import { Profile } from "./components/Profile.jsx";
 import { SignInPrompt } from "./components/SignInPrompt.jsx";
 import { requiresAccount } from "./lib/account.js";
+import { useNavHistory } from "./lib/navHistory.js";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -37,7 +40,7 @@ const DEFAULT_SETUP = {
 };
 
 const CONTEXT = {
-  start: "START", shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER", finance: "YOUR MONEY",
+  start: "START", shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER", tools: "TOOLS",
   capture: "AT THE DEALER", manual: "MANUAL ENTRY", decoder: "DEAL DECODER",
   paywall: "DEAL PASS", modes: "MODE", prep: "PREP MODE · TONIGHT",
   table: "TABLE MODE · ONE HAND", walked: "WATCHING · DAY 2",
@@ -58,8 +61,28 @@ export default function App() {
   const [connections, setConnections] = useState(persisted.connections || {});
 
   const [tab, setTab] = useState("shop");
+  /* Which calculator (or advice stage) Tools is showing. Lives here so
+     Back and the phone's back button move through it like any screen. */
+  const [toolsView, setToolsView] = useState({ calc: null, stage: "before" });
+  /* Cars whose price the buyer asked us to watch. Alerts need an account
+     (something has to reach them with the app closed), so adding one goes
+     through requireAccount("alerts"). */
+  const [watching, setWatching] = useState(persisted.watching || []);
   const [showProfile, setShowProfile] = useState(false);
   const [editingGoal, setEditingGoal] = useState(false);
+
+  /* The vehicle page sits over Shop or the Garage rather than replacing
+     it, so closing it puts the buyer back on the same card with the same
+     filters. `shopListings` is the result set it prices against. */
+  const [vehicle, setVehicle] = useState(null);
+  const [shopListings, setShopListings] = useState([]);
+  const [atVehicle, setAtVehicle] = useState(null);
+  const vehicleCache = useRef({});
+  const openVehicle = (v) => {
+    vehicleCache.current[v.id] = v;
+    setVehicle(v);
+    track("vehicle_viewed", { vehicle: [v.year, v.make, v.model].join(" "), photos: v.photos?.length || (v.image ? 1 : 0), from: tab });
+  };
 
   const [dealView, setDealView] = useState("capture");
   const [deal, setDeal] = useState(null);
@@ -80,6 +103,25 @@ export default function App() {
 
   const desktop = useDesktop();
 
+  const nav = useNavHistory({
+    active: Boolean(auth),
+    snapshot: {
+      tab,
+      dealView: tab === "dealer" ? dealView : null,
+      profile: showProfile,
+      vehicleId: vehicle && (tab === "shop" || tab === "garage") ? vehicle.id : null,
+      toolsCalc: tab === "tools" ? toolsView.calc : null,
+    },
+    restore: (s) => {
+      setTab(s.tab);
+      if (s.dealView) setDealView(s.dealView);
+      setShowProfile(Boolean(s.profile));
+      setVehicle(s.vehicleId ? vehicleCache.current[s.vehicleId] || null : null);
+      if (s.tab === "tools") setToolsView((v) => ({ ...v, calc: s.toolsCalc || null }));
+      setEditingGoal(false);
+    },
+  });
+
   /* A phone-OTP user has no email, so the greeting falls back to the last
      four digits — "Hi 4567" beats "Hi null".
 
@@ -88,13 +130,16 @@ export default function App() {
      keeps their garage, goal and setup. Only handleSignOut clears. */
   const adoptSession = (user) => {
     setAuth("account");
-    const label = user.email
-      ? user.email.split("@")[0]
-      : user.phone
-        ? user.phone.replace(/\D/g, "").slice(-4)
-        : null;
+    const label = user.name
+      ? user.name
+      : user.email
+        ? user.email.split("@")[0]
+        : user.phone
+          ? user.phone.replace(/\D/g, "").slice(-4)
+          : null;
     setUserName(label);
-    identify(user.id, { email: user.email || null, phone: user.phone || null });
+    /* Demo sign-ins are tagged so they never count as real accounts. */
+    identify(user.id, { email: user.email || null, phone: user.phone || null, demo: Boolean(user.demo) });
   };
 
   useEffect(() => {
@@ -111,8 +156,21 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, pass });
-  }, [archetype, setup, cars, connections, pass]);
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, pass, watching });
+  }, [archetype, setup, cars, connections, pass, watching]);
+
+  /* Tools writes single fields; the profile sheet writes the whole setup.
+     Both merge, so neither wipes what the other saved. */
+  const saveSetup = (patch) => setSetup((prev) => ({ ...prev, ...patch }));
+
+  /* Where a Start door or a plan step lands. */
+  const goDest = (dest) => {
+    if (dest?.tab === "profile") { setShowProfile(true); return; }
+    setVehicle(null);
+    if (dest?.tab) setTab(dest.tab);
+    if (dest?.dealView) setDealView(dest.dealView);
+    if (dest?.tab === "tools") setToolsView({ calc: dest.toolsCalc || null, stage: dest.toolsStage || "before" });
+  };
 
   /* A door press is the whole entry: become a guest, and land where they
      said they were. `profile` is the interim home for "getting my money
@@ -122,9 +180,7 @@ export default function App() {
     setAuth("guest");
     track("auth_completed", { kind: "guest", configured: authConfigured });
     track("start_door_opened", { dest: dest?.tab || "shop" });
-    if (dest?.tab === "profile") { setShowProfile(true); return; }
-    if (dest?.tab) setTab(dest.tab);
-    if (dest?.dealView) setDealView(dest.dealView);
+    goDest(dest);
   };
 
   const handleSignOut = async () => {
@@ -132,7 +188,7 @@ export default function App() {
     resetIdentity();
     clearState();
     setAuth(null); setShowProfile(false); setTab("shop");
-    setOnboarded(false); setArchetype(null); setCars([]); setConnections({});
+    setOnboarded(false); setArchetype(null); setCars([]); setConnections({}); setWatching([]);
     setSetup(DEFAULT_SETUP); setDeal(null); setDealView("capture");
     setDecodeCount(0); setPass(null);
   };
@@ -195,6 +251,7 @@ export default function App() {
      goal editor is what "Keep my current goal" does: the saved goal is
      untouched, only the unsaved answers in flight go. */
   const goHome = () => {
+    setVehicle(null);
     setShowProfile(false);
     setEditingGoal(false);
     setSignInAsk(null);
@@ -456,6 +513,14 @@ export default function App() {
     );
 
   const dv = tab === "dealer" ? dealView : tab;
+  const inVehicle = Boolean(vehicle) && (tab === "shop" || tab === "garage");
+
+  /* Back names where it goes, and only shows on screens that sit on top
+     of something. Tab roots don't get one: the bottom bar is how you move
+     between them. The phone's own back button works everywhere (see
+     useNavHistory). */
+  const backTarget = nav.back();
+  const showBack = Boolean(backTarget) && (inVehicle || showProfile || (tab === "tools" && Boolean(toolsView.calc)) || (tab === "dealer" && !["capture", "decoder"].includes(dealView)));
 
   const dealerSessionActive = isDealerSessionLive(deal, dealView);
 
@@ -463,6 +528,14 @@ export default function App() {
     <Shell
       desktop={desktop}
       onHome={goHome}
+      backBar={showBack && (
+        <button
+          onClick={nav.goBack}
+          style={{ display: "flex", alignItems: "center", gap: 4, minHeight: 44, padding: "0 12px", border: "none", borderBottom: `1px solid ${C.line}`, background: C.card, color: C.accentText, fontSize: 14, fontWeight: 700, cursor: "pointer", textAlign: "left" }}
+        >
+          <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>‹</span> {backLabel(backTarget)}
+        </button>
+      )}
       masthead={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {tab === "dealer" && dealView === "decoder" && (
@@ -501,6 +574,8 @@ export default function App() {
              has not reached an outcome yet. */
           dealerLive={dealerSessionActive}
           onGo={(k) => {
+            setVehicle(null);
+            if (k === "tools") setToolsView((v) => ({ ...v, calc: null }));
             setShowProfile(false);
             setTab(k);
             if (k === "dealer" && !deal) setDealView("capture");
@@ -514,7 +589,7 @@ export default function App() {
           name={userName} isGuest={auth === "guest"}
           archetypeName={archetype?.name} setup={setup} connections={connections}
           onConnect={connect} onDisconnect={disconnect}
-          onSaveSetup={(s) => { setSetup(s); track("setup_updated"); }}
+          onSaveSetup={(s) => { saveSetup({ ...s, aprSet: true }); track("setup_updated"); }}
           onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
           onSignOut={handleSignOut} onBack={() => setShowProfile(false)}
           onRequireAccount={requireAccount}
@@ -530,10 +605,12 @@ export default function App() {
               setup={setup}
               hasPass={hasPass}
               onOpenPass={() => openPassFrom("front-anchor", { backTab: "start" })}
+              signedIn={auth === "account"}
+              userName={userName && !/^\d+$/.test(userName) ? userName : null}
+              watchingCount={watching.length}
+              hasDeal={Boolean(deal)}
               onEnter={(dest) => {
-                if (dest?.tab === "profile") { setShowProfile(true); return; }
-                if (dest?.tab) setTab(dest.tab);
-                if (dest?.dealView) setDealView(dest.dealView);
+                goDest(dest);
                 track("start_door_opened", { dest: dest?.tab || "shop" });
               }}
               onSignedIn={(session) => {
@@ -543,26 +620,71 @@ export default function App() {
             />
           )}
 
-          {tab === "finance" && (
-            <Finance setup={setup} onEditTerms={() => setShowProfile(true)} />
-          )}
-
-          {tab === "shop" && (
-            <Shop
-              archetypeKey={archetypeKey} archetypeName={archetype?.name}
-              setup={setup} savedIds={cars.map((c) => c.id)}
-              onSave={(v) => addCar(v, "SHOPPED")}
-              onOpenGoal={() => setEditingGoal(true)}
+          {tab === "tools" && (
+            <Tools
+              setup={setup}
+              cars={cars}
+              signedIn={auth === "account"}
+              view={toolsView}
+              onView={(v) => { setToolsView(v); if (v.calc) track("tool_opened", { calc: v.calc }); }}
+              onSaveSetup={saveSetup}
+              onOpenCar={(id) => { const c = cars.find((x) => x.id === id); if (c) { setTab("garage"); openVehicle(c); } }}
             />
           )}
 
-          {tab === "garage" && (
-            <Garage
-              cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
-              onAdd={addCar} onRemove={removeCar} onRank={rankCar}
-              onShop={() => setTab("shop")}
-              onOpenDecode={() => { setTab("dealer"); setDealView(deal ? "decoder" : "capture"); }}
-            />
+          {(tab === "shop" || tab === "garage") && (
+            <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              {tab === "shop" && (
+                <Shop
+                  archetypeKey={archetypeKey} archetypeName={archetype?.name}
+                  setup={setup} savedIds={cars.map((c) => c.id)}
+                  onSave={(v) => addCar(v, "SHOPPED")}
+                  onOpenGoal={() => setEditingGoal(true)}
+                  onOpen={openVehicle}
+                  onResults={setShopListings}
+                />
+              )}
+              {tab === "garage" && (
+                <Garage
+                  cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
+                  onAdd={addCar} onRemove={removeCar} onRank={rankCar}
+                  onShop={() => setTab("shop")}
+                  onOpen={openVehicle}
+                  watchingIds={watching}
+                  onShare={async () => { const r = await shareOut({ title: "My DriverSide garage", text: garageShareText(cars) }); track("shared", { kind: "garage", result: r, cars: cars.length }); }}
+                  onOpenDecode={() => { setTab("dealer"); setDealView(deal ? "decoder" : "capture"); }}
+                />
+              )}
+              {inVehicle && (
+                <div style={{ position: "absolute", inset: 0, background: C.paper, display: "flex", flexDirection: "column", zIndex: 2 }}>
+                  <VehicleDetail
+                    vehicle={vehicle}
+                    listings={shopListings.length ? shopListings : cars}
+                    zip={setup.zip}
+                    saved={cars.some((c) => c.id === vehicle.id)}
+                    onSave={(v) => addCar(v, tab === "garage" ? "GARAGE" : "SHOPPED")}
+                    watching={watching.includes(vehicle.id)}
+                    onWatch={(v) => {
+                      if (watching.includes(v.id)) { setWatching((w) => w.filter((x) => x !== v.id)); track("price_watch_stopped"); return; }
+                      requireAccount("alerts", () => {
+                        setWatching((w) => (w.includes(v.id) ? w : [...w, v.id]));
+                        addCar(v, tab === "garage" ? "GARAGE" : "SHOPPED");
+                        track("price_watch_started", { vehicle: [v.year, v.make, v.model].join(" ") });
+                      });
+                    }}
+                    onShared={(kind, result) => track("shared", { kind, result })}
+                    onAtDealer={(v) => {
+                      setAtVehicle({ year: v.year, make: v.make, model: v.model, trim: v.trim || "", zip: setup.zip, asking: v.price });
+                      setVehicle(null);
+                      setShowProfile(false);
+                      setTab("dealer");
+                      setDealView(deal ? "decoder" : "capture");
+                      track("at_dealer_from_vehicle", { vehicle: [v.year, v.make, v.model].join(" ") });
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           {/* The front anchor again, where the offer is concrete: a guest
@@ -587,7 +709,7 @@ export default function App() {
             />
           )}
           {tab === "dealer" && dealView === "manual" && (
-            <ManualEntry onDecode={startDecode} onBack={() => setDealView("capture")} />
+            <ManualEntry onDecode={startDecode} onBack={() => setDealView("capture")} initial={atVehicle} />
           )}
           {tab === "dealer" && dealView === "decoder" && deal && (
             <Decoder
@@ -693,7 +815,18 @@ function Wordmark({ onHome }) {
   );
 }
 
-function Shell({ masthead, tabs, bottomNav, context, children, desktop, onHome }) {
+/* What a Back button says, from the history entry it returns to. */
+function backLabel(s) {
+  if (!s) return "Back";
+  if (s.profile) return "Profile";
+  if (s.vehicleId) return "Car";
+  if (s.toolsCalc) return "Calculator";
+  const names = { start: "Start", shop: "Shop", garage: "Garage", tools: "Tools" };
+  if (s.tab === "dealer") return { capture: "At the dealer", decoder: "Your decode", manual: "Manual entry", modes: "Modes", prep: "Prep", table: "Table" }[s.dealView] || "Dealer";
+  return names[s.tab] || "Back";
+}
+
+function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop, onHome }) {
   return (
     <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
       <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
@@ -705,6 +838,7 @@ function Shell({ masthead, tabs, bottomNav, context, children, desktop, onHome }
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
           )}
         </div>
+        {backBar}
         {tabs}
         {children}
         {/* The nav is fixed, so the column reserves its height rather than

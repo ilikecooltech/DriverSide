@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { C, mono, heading } from "../theme.js";
-import { JOURNEY_DOORS, resumeSummary, statsFromShop } from "../data/start.js";
+import { C, mono, heading, highlight } from "../theme.js";
+import { JOURNEY_DOORS, resumeSummary, statsFromShop, planSteps } from "../data/start.js";
+import { affordability } from "../data/tools.js";
 import { OtpForm } from "./OtpForm.jsx";
 import { PassAnchor } from "./Paywall.jsx";
 import { GhostBtn } from "./ui.jsx";
@@ -43,11 +44,33 @@ function writeCachedStats(zip, tiles) {
   }
 }
 
-export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass = false, onOpenPass }) {
+/* Line icons for the doors. No emoji: they render differently on every
+   phone and read as decoration. */
+const DOOR_ICONS = {
+  shop: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4",
+  garage: "M3 21V9l9-5 9 5v12M7 21v-7h10v7M7 17h10",
+  finance: "M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 7h8M8 11h2M12 11h2M8 15h2M12 15h2",
+  quote: "M6 3h9l4 4v14H6zM15 3v4h4M9 12h7M9 16h7",
+  bought: "M20 6L9 17l-5-5",
+};
+
+function DoorIcon({ k }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={DOOR_ICONS[k] || DOOR_ICONS.shop} />
+    </svg>
+  );
+}
+
+export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass = false, onOpenPass, signedIn = false, userName = null, watchingCount = 0, hasDeal = false }) {
   const zip = setup?.zip || "77471";
   const [tiles, setTiles] = useState(() => readCachedStats(zip) || []);
   const [signIn, setSignIn] = useState(false);
   const resume = resumeSummary({ cars, archetypeName });
+  const afford = affordability({ budget: setup?.budget, down: setup?.down, apr: setup?.aprSet ? setup?.apr : null, term: setup?.term });
+  const plan = planSteps({ setup, cars, watchingCount, hasDeal, affordMax: afford?.maxPrice || null });
+  const doneCount = plan.filter((s) => s.done).length;
+  const showPlan = signedIn || doneCount > 0;
 
   useEffect(() => {
     if (tiles.length) return;
@@ -110,8 +133,8 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
     <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
       {/* ── hero ── */}
       <div style={{ padding: "22px 16px 16px", borderBottom: `1px solid ${C.line}` }}>
-        <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 30, lineHeight: 1.1, margin: 0, maxWidth: "18ch" }}>
-          Buying a car? Good. You brought backup.
+        <h1 style={{ fontFamily: heading, fontWeight: 700, fontSize: 34, lineHeight: 1.05, margin: 0, maxWidth: "16ch" }}>
+          Where are you <span style={highlight(0.36)}>in the process?</span>
         </h1>
         <p style={{ color: C.inkSoft, fontSize: 13.5, marginTop: 8, lineHeight: 1.55, maxWidth: "46ch" }}>
           The dealer has software, training, and the home field. DriverSide reads the live market, decodes their
@@ -146,7 +169,42 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
         </div>
       )}
 
-      {/* ── the five doors ── */}
+      {/* ── signed in: a greeting, and the plan built from what's on the device ── */}
+      {signedIn && (
+        <div style={{ margin: "14px 16px 0", background: C.greenBg, padding: "12px 13px" }}>
+          <div style={{ fontFamily: heading, fontWeight: 700, fontSize: 20 }}>Welcome back{userName ? `, ${userName}` : ""}.</div>
+          <div style={{ fontSize: 12.5, color: C.ink, marginTop: 2, lineHeight: 1.5 }}>
+            {watchingCount ? `Watching ${watchingCount} price${watchingCount === 1 ? "" : "s"} for drops and the 60-day mark.` : "Watch a price from any car's page and we'll keep an eye on it."}
+          </div>
+        </div>
+      )}
+      {showPlan && (
+        <div style={{ margin: "14px 16px 0", border: `1px solid ${C.line}`, background: C.card, padding: "12px 13px 4px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h2 style={{ fontFamily: heading, fontWeight: 700, fontSize: 20, margin: 0 }}>Your plan</h2>
+            <span style={{ fontFamily: mono, fontSize: 10, color: C.green }}>{doneCount} OF {plan.length} DONE</span>
+          </div>
+          <div aria-hidden="true" style={{ height: 5, background: C.line, margin: "8px 0 4px" }}>
+            <div style={{ height: 5, width: `${(doneCount / plan.length) * 100}%`, background: C.greenFill }} />
+          </div>
+          {plan.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => onEnter(s.dest)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, minHeight: 50, padding: "6px 0", border: "none", borderTop: `1px solid ${C.line}`, background: "none", cursor: "pointer", textAlign: "left", color: C.ink, fontFamily: "inherit" }}
+            >
+              <span aria-hidden="true" style={{ width: 22, height: 22, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: s.done ? C.greenFill : "transparent", color: "#fff", border: s.done ? "none" : `2px solid ${C.dash}` }}>{s.done ? "✓" : ""}</span>
+              <span style={{ flex: 1 }}>
+                <b style={{ display: "block", fontSize: 14 }}>{s.title}<span style={{ position: "absolute", left: -9999 }}>{s.done ? ", done" : ", to do"}</span></b>
+                <span style={{ display: "block", fontSize: 12, color: C.inkSoft }}>{s.line}</span>
+              </span>
+              <span aria-hidden="true" style={{ color: C.accentText, fontWeight: 700 }}>›</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── the doors ── */}
       <div style={{ padding: "16px 16px 8px" }}>
         <h2 style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, margin: 0 }}>Start wherever you are.</h2>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 2, marginBottom: 12 }}>
@@ -166,7 +224,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
               {d.urgent ? (
                 <span className="ds-pulse" style={{ width: 9, height: 9, borderRadius: "50%", background: C.onNavySuccess, display: "block" }} />
               ) : (
-                d.icon
+                <span style={{ color: C.accent, display: "flex" }}><DoorIcon k={d.key} /></span>
               )}
             </span>
             <span style={{ flex: 1, minWidth: 0 }}>

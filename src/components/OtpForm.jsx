@@ -32,7 +32,7 @@ function sendMessage(r) {
 export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false }) {
   const [step, setStep] = useState("identifier"); // identifier | code
   const [identifier, setIdentifier] = useState("");
-  const [dest, setDest] = useState(null); // { kind, value } — what we sent to
+  const [dest, setDest] = useState(null); // { kind, value, demo? } — what we sent to
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -52,8 +52,9 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
     try {
       const r = await sendOtp(identifier);
       if (r.kind === "invalid") { setError(r.reason); return; }
-      setDest({ kind: r.kind, value: r.value });
+      setDest({ kind: r.kind, value: r.value, demo: Boolean(r.demo) });
       if (r.simulated) { onDone(); return; }
+      if (r.demo) { setCode(""); setStep("code"); return; }
       if (r.error) { setError(sendMessage(r)); return; }
       setCode("");
       setStep("code");
@@ -123,9 +124,9 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5 }}>
-        We sent a 6-digit code to{" "}
+        {dest?.demo ? "Demo account. Enter your demo code for" : "We sent a 6-digit code to"}{" "}
         <span style={{ fontFamily: mono, color: C.ink }}>{dest ? prettyDest(dest.kind, dest.value) : ""}</span>.
-        {dest?.kind === "email" ? " It expires in an hour." : " It expires in a few minutes."}
+        {dest?.demo ? "" : dest?.kind === "email" ? " It expires in an hour." : " It expires in a few minutes."}
       </div>
       <input
         ref={codeRef}

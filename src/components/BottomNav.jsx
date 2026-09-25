@@ -20,12 +20,31 @@ export const NAV_HEIGHT = 58;
    later phase builds; it stays reachable and says so rather than being a
    dead tab. */
 export const NAV_ITEMS = [
-  { key: "start", icon: "⌂", label: "Start" },
-  { key: "shop", icon: "🔍", label: "Shop" },
-  { key: "garage", icon: "🚗", label: "Garage" },
-  { key: "finance", icon: "💵", label: "Finance", pending: true },
-  { key: "dealer", icon: "🤝", label: "Dealer", live: true },
+  { key: "start", label: "Start" },
+  { key: "shop", label: "Shop" },
+  { key: "garage", label: "Garage" },
+  { key: "tools", label: "Tools" },
+  { key: "dealer", label: "Dealer", live: true },
 ];
+
+/* Line icons, drawn in currentColor so they follow the active state. The
+   brand uses no emoji: they render differently on every phone and read
+   as decoration, not navigation. */
+export const ICON_PATHS = {
+  start: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z",
+  shop: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4",
+  garage: "M3 21V9l9-5 9 5v12M7 21v-7h10v7M7 17h10",
+  tools: "M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 7h8M8 11h2M12 11h2M8 15h2M12 15h2M8 18h2M12 18h4",
+  dealer: "M4 21V10M20 21V10M2 10l10-6 10 6M9 21v-5h6v5",
+};
+
+export function NavIcon({ name, size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={ICON_PATHS[name]} />
+    </svg>
+  );
+}
 
 /* A dealer session is "live" while a decoded sheet is open and has not
    reached an outcome. Walked, receipt and fresh start are endings, so the
@@ -75,7 +94,7 @@ export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
               minHeight: NAV_HEIGHT,
               background: "none",
               border: "none",
-              borderTop: on ? `2px solid ${C.ink}` : "2px solid transparent",
+              borderTop: on ? `3px solid ${C.accent}` : "3px solid transparent",
               cursor: "pointer",
               padding: "7px 2px 8px",
               display: "flex",
@@ -83,15 +102,15 @@ export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
               alignItems: "center",
               justifyContent: "center",
               gap: 3,
-              fontFamily: mono,
-              fontSize: 9.5,
-              letterSpacing: "0.04em",
+              fontFamily: sans,
+              fontSize: 11,
+              letterSpacing: "0.01em",
               color: on ? C.ink : C.inkSoft,
               fontWeight: on ? 700 : 400,
             }}
           >
-            <span aria-hidden="true" style={{ fontSize: 17, lineHeight: 1, position: "relative", display: "block" }}>
-              {it.icon}
+            <span aria-hidden="true" style={{ lineHeight: 1, position: "relative", display: "block" }}>
+              <NavIcon name={it.key} />
               {showDot && (
                 <span
                   className="ds-pulse"

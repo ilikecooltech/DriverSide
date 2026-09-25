@@ -212,11 +212,27 @@ export function toGarageItem(v, src = "SHOPPED") {
     image: v.image || null,
     src,
     decoded: Boolean(v.decoded),
+    /* Everything the vehicle page shows, carried so a saved car opens to
+       the same page from the Garage. Only fields the listing actually
+       had; sample and hand-added cars carry none of them. */
+    ...detailFields(v),
   };
 }
 
 /* Segment median from whatever set we have — used for the value read
    when a per-vehicle market call isn't warranted. */
+const DETAIL_KEYS = [
+  "photos", "vin", "stockNo", "exterior", "interior", "engine", "drivetrain",
+  "transmission", "powertrain", "mpgCity", "mpgHwy", "seats", "dealerCity",
+  "dealerState", "dealerType", "dist", "url", "certified",
+];
+
+export function detailFields(v) {
+  const out = {};
+  for (const k of DETAIL_KEYS) if (v[k] !== undefined && v[k] !== null) out[k] = v[k];
+  return out;
+}
+
 export function segmentMedian(listings) {
   const prices = listings.map((l) => l.price).sort((a, b) => a - b);
   if (!prices.length) return null;

@@ -60,7 +60,7 @@ function AddVehicle({ onAdd, onCancel }) {
   );
 }
 
-export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop }) {
+export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop, onOpen, watchingIds = [], onShare }) {
   const [adding, setAdding] = useState(false);
   const desktop = useDesktop();
   const profile = useMemo(() => profileFor(archetypeKey), [archetypeKey]);
@@ -108,6 +108,18 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
         <span style={{ fontFamily: mono, fontSize: 9, color: C.inkSoft }}>YOUR ORDER</span>
       </div>
 
+      {/* Buying is rarely a solo decision. The garage goes to a partner or
+          a parent as plain text; they don't need the app to weigh in. */}
+      {onShare && cars.length > 0 && (
+        <button
+          onClick={onShare}
+          style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", marginBottom: 12, border: `1px solid ${C.line}`, background: C.card, cursor: "pointer", color: C.ink, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, textAlign: "left" }}
+        >
+          Buying with someone? Share this garage
+          <span style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, letterSpacing: "0.08em" }}>SHARE</span>
+        </button>
+      )}
+
       {adding && <AddVehicle onAdd={(c) => { onAdd(c); setAdding(false); }} onCancel={() => setAdding(false)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: desktop ? "1fr 1fr" : "1fr", gap: 12 }}>
@@ -118,7 +130,12 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
             <div key={g.id} style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15.5, fontWeight: 700 }}>{g.title}</div>
+                  <div style={{ fontSize: 15.5, fontWeight: 700 }}>
+                    {g.title}
+                    {watchingIds.includes(g.id) && (
+                      <span style={{ marginLeft: 8, verticalAlign: "middle", fontFamily: mono, fontSize: 9.5, letterSpacing: "0.08em", color: C.accentText, background: C.accentTint, padding: "2px 6px" }}>WATCHING</span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
                     {g.miles ? `${Math.round(g.miles / 1000)}k mi · ` : ""}
                     <span style={{ fontFamily: mono, fontSize: 10, border: `1px solid ${C.line}`, padding: "1px 5px" }}>{g.src}</span>
@@ -160,6 +177,11 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                     <option key={i} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
+                {onOpen && (
+                  <button onClick={() => onOpen(g)} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
+                    DETAILS →
+                  </button>
+                )}
                 {g.decoded && (
                   <button onClick={onOpenDecode} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     QUOTE DECODED →
