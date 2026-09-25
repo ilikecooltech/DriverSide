@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { C, mono } from "../theme.js";
-import { Kicker, PrimaryBtn, GhostBtn } from "./ui.jsx";
+import { Kicker, PrimaryBtn, GhostBtn, Slider } from "./ui.jsx";
 import { toOwnedItem } from "../data/owned.js";
 import { CarStats } from "./CarStats.jsx";
 
@@ -79,14 +79,14 @@ export function AddOwnedCar({ gas, onAdd, onCancel }) {
       <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {[["pick", "Year, make, model"], ["vin", "VIN"]].map(([k, t]) => (
           <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)}
-            style={{ flex: 1, minHeight: 38, border: `1px solid ${mode === k ? C.ink : C.line}`, background: mode === k ? C.ink : C.card, color: mode === k ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, minHeight: 44, border: `1px solid ${mode === k ? C.ink : C.line}`, background: mode === k ? C.ink : C.card, color: mode === k ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
             {t}
           </button>
         ))}
       </div>
 
       {mode === "pick" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <Select id="own-year" label="Year" value={year} onChange={setYear} options={YEARS.map((y) => ({ text: y, value: y }))} placeholder="Year" />
           <Select id="own-make" label="Make" value={make} onChange={setMake} options={makes} disabled={!year} placeholder={year && !makes.length ? "Loading…" : "Make"} />
           <Select id="own-model" label="Model" value={model} onChange={setModel} options={models} disabled={!make} placeholder={make && !models.length ? "Loading…" : "Model"} />
@@ -101,15 +101,9 @@ export function AddOwnedCar({ gas, onAdd, onCancel }) {
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
-        <div>
-          <label htmlFor="own-miles" style={lab}>Miles on it (optional)</label>
-          <input id="own-miles" inputMode="numeric" value={miles} onChange={(e) => setMiles(e.target.value.replace(/\D/g, ""))} placeholder="68000" style={{ ...field, fontFamily: mono }} />
-        </div>
-        <div>
-          <label htmlFor="own-peryear" style={lab}>Miles you drive a year</label>
-          <input id="own-peryear" inputMode="numeric" value={perYear} onChange={(e) => setPerYear(e.target.value.replace(/\D/g, ""))} placeholder="12000" style={{ ...field, fontFamily: mono }} />
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+        <Slider id="own-miles" label="Miles on it (optional)" value={miles} onChange={setMiles} min={0} max={250000} step={1000} rest={60000} suf="mi" />
+        <Slider id="own-peryear" label="Miles you drive a year" value={perYear} onChange={setPerYear} min={2000} max={40000} step={500} rest={12000} suf="mi" hint={perYear ? null : "12,000 is typical."} />
       </div>
 
       {preview && (

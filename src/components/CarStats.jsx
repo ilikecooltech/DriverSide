@@ -44,7 +44,7 @@ export function CarStats({ car, gas, onStats, compact = false }) {
         <button
           onClick={load}
           disabled={state === "loading"}
-          style={{ marginTop: shown.length ? 10 : 0, minHeight: 36, padding: "0 10px", border: `1px solid ${C.accent}`, background: "none", color: C.accentText, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
+          style={{ marginTop: shown.length ? 10 : 0, minHeight: 44, padding: "0 10px", border: `1px solid ${C.accent}`, background: "none", color: C.accentText, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
         >
           {state === "loading" ? "Looking it up…" : state === "error" ? "Couldn't find it. Try again" : "See safety, repairs and size"}
         </button>

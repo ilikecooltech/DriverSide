@@ -4,7 +4,7 @@ import {
   BODY_TYPES, FILTER_META, profileFor, defaultFilters, matchScore,
   valueLabel, SAMPLE_INVENTORY, filterInventory, segmentMedian, formatFilterValue,
 } from "../data/shopping.js";
-import { Kicker, PrimaryBtn, useDesktop, VehicleImage } from "./ui.jsx";
+import { Kicker, PrimaryBtn, useDesktop, VehicleImage, Slider } from "./ui.jsx";
 
 /* Shop — where the journey starts. The goal picks what you see; the
    filters are the six that change the answer, not forty that don't.
@@ -25,6 +25,8 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
   useEffect(() => {
     let dead = false;
     setSource("loading");
+    // Sliders fire on every pixel; wait for the thumb to settle before searching.
+    const t = setTimeout(() => {
     const q = new URLSearchParams({
       zip: filters.zip, radius: String(filters.radius),
       bodyType: filters.bodyType, maxPrice: String(filters.maxPrice),
@@ -44,7 +46,8 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
         if (dead) return;
         setListings(filterInventory(SAMPLE_INVENTORY, filters)); setSource("sample");
       });
-    return () => { dead = true; };
+    }, 350);
+    return () => { dead = true; clearTimeout(t); };
   }, [filters]);
 
   const median = useMemo(() => segmentMedian(listings || []), [listings]);
@@ -59,20 +62,22 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
       .sort((a, b) => b.match - a.match);
   }, [listings, profile, median]);
 
-  const set = (k, v) => setFilters({ ...filters, [k]: v });
+  const set = (k, v) => setFilters((prev) => ({ ...prev, [k]: v }));
 
   const stepper = (k) => {
     const m = FILTER_META[k];
-    const val = filters[k];
-    const btn = { width: 40, height: 40, border: `1px solid ${C.line}`, background: C.paper, fontSize: 17, fontWeight: 700, cursor: "pointer", color: C.ink };
     return (
-      <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>{m.label}</span>
-        <button onClick={() => set(k, Math.max(m.min, val - m.step))} aria-label={`Lower ${m.label}`} style={btn}>−</button>
-        <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 800, width: 82, textAlign: "center" }}>
-          {formatFilterValue(m, val)}
-        </span>
-        <button onClick={() => set(k, Math.min(m.max, val + m.step))} aria-label={`Raise ${m.label}`} style={btn}>+</button>
+      <div key={k} style={{ marginBottom: 6 }}>
+        <Slider
+          id={`filter-${k}`}
+          label={m.label}
+          value={filters[k]}
+          onChange={(v) => set(k, Math.min(m.max, Math.max(m.min, Number(v) || m.min)))}
+          min={m.min} max={m.max} step={m.step}
+          format={(v) => formatFilterValue(m, v)}
+          typeable={false}
+          nudge
+        />
       </div>
     );
   };
@@ -83,7 +88,7 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
       <div style={{ background: C.accentTint, padding: "12px 14px", marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
           <Kicker color={C.accentText} style={{ letterSpacing: "0.12em" }}>SHOPPING FOR YOUR GOAL</Kicker>
-          <button onClick={onOpenGoal} style={{ fontSize: 11.5, fontWeight: 700, color: C.accentText, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <button onClick={onOpenGoal} style={{ minHeight: 44, minWidth: 44, fontSize: 11.5, fontWeight: 700, color: C.accentText, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             Change goal
           </button>
         </div>
@@ -98,7 +103,7 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
             key={b}
             onClick={() => set("bodyType", filters.bodyType === b ? "" : b)}
             style={{
-              minHeight: 36, padding: "0 12px", cursor: "pointer", fontSize: 12, fontWeight: 700,
+              minHeight: 44, padding: "0 14px", cursor: "pointer", fontSize: 13, fontWeight: 700,
               border: `1px solid ${filters.bodyType === b ? C.accent : C.line}`,
               background: filters.bodyType === b ? C.accentTint : C.card,
               color: filters.bodyType === b ? C.accentText : C.ink,
@@ -109,7 +114,7 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
         ))}
         <button
           onClick={() => setShowFilters(!showFilters)}
-          style={{ minHeight: 36, padding: "0 12px", cursor: "pointer", fontSize: 12, fontWeight: 700, border: `1px solid ${C.line}`, background: C.card, color: C.accentText, marginLeft: "auto" }}
+          style={{ minHeight: 44, padding: "0 14px", cursor: "pointer", fontSize: 13, fontWeight: 700, border: `1px solid ${C.line}`, background: C.card, color: C.accentText, marginLeft: "auto" }}
         >
           {showFilters ? "Hide filters −" : "More filters +"}
         </button>
@@ -123,12 +128,13 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
             <input
               value={filters.zip}
               onChange={(e) => set("zip", e.target.value.replace(/\D/g, "").slice(0, 5))}
-              style={{ width: 90, minHeight: 40, padding: "0 10px", border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 14, fontWeight: 700, color: C.ink }}
+              inputMode="numeric"
+              style={{ width: 96, minHeight: 44, padding: "0 10px", border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 14, fontWeight: 700, color: C.ink }}
             />
           </div>
           <button
             onClick={() => setFilters(defaultFilters(profile, setup))}
-            style={{ marginTop: 10, background: "none", border: "none", color: C.accentText, fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: 0 }}
+            style={{ marginTop: 4, minHeight: 44, background: "none", border: "none", color: C.accentText, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0 }}
           >
             ↺ Reset to what fits my goal
           </button>
@@ -217,7 +223,7 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
                   onClick={() => !saved && onSave({ ...v, id })}
                   disabled={saved}
                   style={{
-                    width: "100%", minHeight: 40, marginTop: 10, cursor: saved ? "default" : "pointer",
+                    width: "100%", minHeight: 44, marginTop: 10, cursor: saved ? "default" : "pointer",
                     border: `1px solid ${saved ? C.green : C.accent}`,
                     background: saved ? C.greenBg : C.card,
                     color: saved ? C.green : C.accentText,

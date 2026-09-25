@@ -570,7 +570,7 @@ export default function App() {
             onClick={() => setShowProfile(!showProfile)}
             aria-label="Profile"
             style={{
-              display: "flex", alignItems: "center", gap: 6, minHeight: 30, padding: "0 8px",
+              display: "flex", alignItems: "center", gap: 6, minHeight: 44, padding: "0 10px",
               border: `1.5px solid ${showProfile ? C.accent : C.ink}`,
               background: showProfile ? C.accentTint : C.card,
               cursor: "pointer", color: C.ink,

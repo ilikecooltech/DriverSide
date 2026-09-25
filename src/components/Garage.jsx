@@ -77,7 +77,7 @@ function OwnedCard({ car, gas, onRemove }) {
           <div style={{ fontSize: 15.5, fontWeight: 700 }}>{car.title}</div>
           {car.miles > 0 && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{Math.round(car.miles / 1000)}k mi on it</div>}
         </div>
-        <button onClick={() => onRemove(car.id)} style={{ fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>Remove</button>
+        <button onClick={() => onRemove(car.id)} style={{ minHeight: 44, minWidth: 44, fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>Remove</button>
       </div>
       <CarStats car={car} gas={gas} />
     </div>
@@ -216,25 +216,25 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                   id={`rank-${g.id}`}
                   value={ix + 1}
                   onChange={(e) => onRank(ix, Number(e.target.value) - 1)}
-                  style={{ minHeight: 36, border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.ink, padding: "0 6px" }}
+                  style={{ minHeight: 44, border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.ink, padding: "0 6px" }}
                 >
                   {cars.map((_, i) => (
                     <option key={i} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
                 {onOpen && (
-                  <button onClick={() => onOpen(g)} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
+                  <button onClick={() => onOpen(g)} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
                     DETAILS →
                   </button>
                 )}
                 {g.decoded && (
-                  <button onClick={onOpenDecode} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <button onClick={onOpenDecode} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     QUOTE DECODED →
                   </button>
                 )}
                 <button
                   onClick={() => onRemove(g.id)}
-                  style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}
+                  style={{ marginLeft: "auto", minHeight: 44, minWidth: 44, fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}
                 >
                   Remove
                 </button>

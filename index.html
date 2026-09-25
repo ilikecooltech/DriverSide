@@ -24,6 +24,25 @@
         50% { opacity: 0.45; transform: scale(0.82); }
       }
       .ds-pulse { animation: ds-pulse 2.4s ease-in-out infinite; }
+      /* Sliders: a 44px-tall touch strip, a 6px track filled in accent up
+         to the thumb (--fill is set inline), and a 28px thumb that's easy
+         to find with a thumb. */
+      input.ds-range { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; margin: 0; background: transparent; cursor: pointer; touch-action: pan-y; }
+      input.ds-range::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(to right, #2B5A87 var(--fill, 0%), #E4DFD3 var(--fill, 0%)); }
+      input.ds-range::-moz-range-track { height: 6px; background: #E4DFD3; }
+      input.ds-range::-moz-range-progress { height: 6px; background: #2B5A87; }
+      input.ds-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 50%; background: #FFFFFF; border: 2px solid #16233B; box-shadow: 0 1px 3px rgba(22,35,59,0.25); }
+      input.ds-range::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: #FFFFFF; border: 2px solid #16233B; }
+      input.ds-range.ds-unset::-webkit-slider-thumb { border-color: #B9B2A2; }
+      input.ds-range.ds-unset::-moz-range-thumb { border-color: #B9B2A2; }
+      input.ds-range:focus-visible { outline: 2px solid #2B5A87; outline-offset: 2px; }
+      /* Phones: 16px text in every field so iOS doesn't zoom the page when
+         one is tapped. */
+      @media (max-width: 820px) {
+        input:not([type="range"]), select, textarea { font-size: 16px !important; }
+      }
+      /* No sideways scrolling on a phone, ever. */
+      html, body { overflow-x: hidden; }
       @media (prefers-reduced-motion: reduce) {
         .ds-pulse { animation: none; }
         * { transition: none !important; }

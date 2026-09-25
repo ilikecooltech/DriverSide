@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { C, mono, heading, fmt } from "../theme.js";
 import { CONNECTORS } from "../data/connections.js";
-import { Kicker, PrimaryBtn } from "./ui.jsx";
+import { Kicker, PrimaryBtn, Slider } from "./ui.jsx";
 
 /* Profile — organized around the shopping loop, not account plumbing:
    the marketplaces that feed the Garage, the four numbers every other
@@ -26,29 +26,38 @@ function EditRow({ label, value, mono: isMono, color, onEdit }) {
 
 function SetupEditor({ setup, onSave, onCancel }) {
   const [v, setV] = useState(setup);
-  const F = [
-    { k: "zip", label: "ZIP", ph: "77471", max: 5, mono: true },
-    { k: "radius", label: "Search radius (mi)", ph: "100", mono: true },
-    { k: "apr", label: "Pre-approval APR %", ph: "7.2", mono: true },
-    { k: "term", label: "Pre-approval term (months)", ph: "60", mono: true },
+  const T = [
+    { k: "zip", label: "ZIP", ph: "77471", max: 5, mono: true, numeric: true },
     { k: "tradeCar", label: "Trade-in vehicle", ph: "2019 Nissan Altima SV" },
-    { k: "tradeValue", label: "Trade value", ph: "9200", mono: true },
-    { k: "tradePayoff", label: "Trade loan payoff", ph: "12100", mono: true },
+  ];
+  /* Numbers are sliders with the exact figure beside them. */
+  const S = [
+    { k: "radius", label: "Search radius", suf: "mi", min: 25, max: 250, step: 25 },
+    { k: "apr", label: "Pre-approval rate", suf: "%", min: 0, max: 25, step: 0.1, decimal: true },
+    { k: "term", label: "Pre-approval term", suf: "mo", min: 24, max: 84, step: 12 },
+    { k: "tradeValue", label: "Trade value", pre: "$", min: 0, max: 60000, step: 250 },
+    { k: "tradePayoff", label: "Trade loan payoff", pre: "$", min: 0, max: 60000, step: 250 },
   ];
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 16 }}>
       <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>EDIT YOUR SHOPPING SETUP</Kicker>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
-        {F.map((f) => (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+        {T.map((f) => (
           <div key={f.k}>
-            <label style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
+            <label htmlFor={`setup-${f.k}`} style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
             <input
+              id={`setup-${f.k}`}
               value={v[f.k] ?? ""}
               onChange={(e) => setV({ ...v, [f.k]: f.max ? e.target.value.slice(0, f.max) : e.target.value })}
               placeholder={f.ph}
+              inputMode={f.numeric ? "numeric" : undefined}
               style={{ width: "100%", boxSizing: "border-box", minHeight: 44, padding: "8px 10px", border: `1px solid ${C.line}`, background: C.paper, fontFamily: f.mono ? mono : "inherit", fontSize: 14, fontWeight: 600, color: C.ink }}
             />
           </div>
+        ))}
+        {S.map((f) => (
+          <Slider key={f.k} id={`setup-${f.k}`} label={f.label} value={v[f.k] ?? ""} onChange={(x) => setV({ ...v, [f.k]: x })}
+            min={f.min} max={f.max} step={f.step} pre={f.pre} suf={f.suf} decimal={f.decimal} />
         ))}
       </div>
       <div style={{ fontSize: 11.5, color: C.inkSoft, margin: "10px 0", lineHeight: 1.5 }}>
@@ -87,7 +96,7 @@ export function Profile({
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
       {/* The app bar already shows a named Back when there is somewhere to go back to. */}
-      {!hideBack && <button onClick={onBack} style={{ minHeight: 40, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 4 }}>← Back</button>}
+      {!hideBack && <button onClick={onBack} style={{ minHeight: 44, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 4 }}>← Back</button>}
 
       {isGuest && (
         <div style={{ border: `1px solid ${C.amber}`, background: C.amberBg, padding: "12px 14px", marginBottom: 16 }}>
@@ -98,7 +107,7 @@ export function Profile({
           </div>
           <button
             onClick={() => onRequireAccount?.("alerts")}
-            style={{ minHeight: 40, width: "100%", border: `1.5px solid ${C.amberDark}`, background: C.card, color: C.amberDark, fontFamily: mono, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}
+            style={{ minHeight: 44, width: "100%", border: `1.5px solid ${C.amberDark}`, background: C.card, color: C.amberDark, fontFamily: mono, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}
           >
             CREATE AN ACCOUNT — KEEPS EVERYTHING YOU'VE BUILT
           </button>
@@ -127,7 +136,7 @@ export function Profile({
             </span>
             <button
               onClick={() => (on ? onDisconnect(c.id) : onConnect(c.id))}
-              style={{ minHeight: 36, minWidth: 108, fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", border: `1px solid ${on ? C.green : C.accent}`, background: on ? C.greenBg : C.card, color: on ? C.green : C.accentText, cursor: "pointer" }}
+              style={{ minHeight: 44, minWidth: 108, fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", border: `1px solid ${on ? C.green : C.accent}`, background: on ? C.greenBg : C.card, color: on ? C.green : C.accentText, cursor: "pointer" }}
             >
               {on ? "✓ CONNECTED" : "CONNECT"}
             </button>
@@ -145,7 +154,7 @@ export function Profile({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
         <Kicker>YOUR SHOPPING SETUP</Kicker>
         {!editing && (
-          <button onClick={() => setEditing(true)} style={{ fontSize: 12, fontWeight: 700, color: C.accentText, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <button onClick={() => setEditing(true)} style={{ minHeight: 44, minWidth: 44, fontSize: 12, fontWeight: 700, color: C.accentText, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             Edit all
           </button>
         )}

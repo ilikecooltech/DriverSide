@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { C, mono, heading, fmt, highlight } from "../theme.js";
-import { Kicker } from "./ui.jsx";
+import { Kicker, Slider } from "./ui.jsx";
 import {
   paymentPlan, affordability, rateGap, tradeIn, hybridPayback, outTheDoorCheck, STAGES, ADVICE,
 } from "../data/tools.js";
@@ -26,26 +26,29 @@ export const CALCS = [
   { key: "otd", title: "Out-the-door check", line: "Line by line" },
 ];
 
+/* Every number is a slider (drag for the ballpark) with the exact figure
+   beside it to type. Ranges cover real-world deals; typing past the end
+   of a slider still works. `rest` is where an unset slider sits. */
 const FIELDS = {
-  price: { label: "Car price", pre: "$" },
-  down: { label: "Down payment", pre: "$" },
-  apr: { label: "Your rate (APR)", suf: "%", ph: "from your bank or credit union", decimal: true },
-  term: { label: "Loan length", suf: "months" },
-  budget: { label: "Most you want to pay a month", pre: "$", suf: "/mo" },
-  theirApr: { label: "The dealer's rate (APR)", suf: "%", decimal: true },
-  amount: { label: "Amount to finance", pre: "$" },
-  trade: { label: "Their offer for your trade-in", pre: "$", ph: "e.g. 9000" },
-  payoff: { label: "What you still owe on it", pre: "$", ph: "0 if paid off" },
-  priceGap: { label: "How much more the hybrid costs", pre: "$" },
-  gasCity: { label: "Gas version: city mpg" },
-  gasHwy: { label: "Gas version: highway mpg" },
-  hybCity: { label: "Hybrid: city mpg" },
-  hybHwy: { label: "Hybrid: highway mpg" },
-  miles: { label: "Miles you drive a year", suf: "mi" },
-  gasPrice: { label: "Gas price near you", pre: "$", suf: "/gal", decimal: true },
-  addons: { label: "Dealer add-ons", pre: "$", ph: "0 is the goal" },
-  docFee: { label: "Doc fee", pre: "$", ph: "ask them" },
-  titleReg: { label: "Title and registration", pre: "$", ph: "ask them" },
+  price: { label: "Car price", pre: "$", min: 5000, max: 100000, step: 250, rest: 30000 },
+  down: { label: "Down payment", pre: "$", min: 0, max: 30000, step: 250, rest: 3000 },
+  apr: { label: "Your rate (APR)", suf: "%", decimal: true, min: 0, max: 25, step: 0.1, rest: 7, hint: "From your bank or credit union." },
+  term: { label: "Loan length", suf: "mo", min: 24, max: 84, step: 12, rest: 60 },
+  budget: { label: "Most you want to pay a month", pre: "$", suf: "/mo", min: 100, max: 1500, step: 10, rest: 450 },
+  theirApr: { label: "The dealer's rate (APR)", suf: "%", decimal: true, min: 0, max: 25, step: 0.1, rest: 9 },
+  amount: { label: "Amount to finance", pre: "$", min: 1000, max: 100000, step: 250, rest: 25000 },
+  trade: { label: "Their offer for your trade-in", pre: "$", min: 0, max: 60000, step: 250, rest: 9000 },
+  payoff: { label: "What you still owe on it", pre: "$", min: 0, max: 60000, step: 250, rest: 0, hint: "0 if it's paid off." },
+  priceGap: { label: "How much more the hybrid costs", pre: "$", min: 0, max: 20000, step: 100, rest: 3000 },
+  gasCity: { label: "Gas version: city mpg", suf: "mpg", min: 8, max: 80, step: 1, rest: 25 },
+  gasHwy: { label: "Gas version: highway mpg", suf: "mpg", min: 8, max: 80, step: 1, rest: 33 },
+  hybCity: { label: "Hybrid: city mpg", suf: "mpg", min: 8, max: 80, step: 1, rest: 48 },
+  hybHwy: { label: "Hybrid: highway mpg", suf: "mpg", min: 8, max: 80, step: 1, rest: 45 },
+  miles: { label: "Miles you drive a year", suf: "mi", min: 2000, max: 40000, step: 500, rest: 12000 },
+  gasPrice: { label: "Gas price near you", pre: "$", suf: "/gal", decimal: true, min: 2, max: 7, step: 0.01, rest: 3.5 },
+  addons: { label: "Dealer add-ons", pre: "$", min: 0, max: 5000, step: 50, rest: 0, hint: "0 is the goal." },
+  docFee: { label: "Doc fee", pre: "$", min: 0, max: 1500, step: 10, rest: 150 },
+  titleReg: { label: "Title and registration", pre: "$", min: 0, max: 1500, step: 10, rest: 300 },
 };
 
 /* Which setup key each shared field reads from and writes back to. */
@@ -209,8 +212,7 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
   const calcKey = view?.calc || null;
   const stage = view?.stage || "before";
 
-  const set = (k) => (e) => {
-    const value = e.target.value;
+  const set = (k) => (value) => {
     setVals((prev) => ({ ...prev, [k]: value }));
     const sk = SETUP_KEYS[k];
     if (sk) {
@@ -255,7 +257,7 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
           {r.sub && <div style={{ fontSize: 13, color: "#C9D3E0", marginTop: 4 }}>{r.sub}</div>}
         </div>
         {calcKey === "hybrid" && choices.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
             {[["A", "Car 1", "pickA"], ["B", "Car 2", "pickB"]].map(([slot, label, key]) => (
               <div key={slot} style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
                 <label htmlFor={`pick-${slot}`} style={{ fontSize: 13, fontWeight: 700 }}>{label}{picking === slot ? " · looking up mpg…" : ""}</label>
@@ -280,27 +282,20 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
         {calcKey === "hybrid" && choices.length === 0 && (
           <p style={{ margin: 0, fontSize: 13, color: C.inkSoft }}>Save cars to your Garage, or add the one you own, and you can pick them here instead of typing mpg.</p>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {CALC_FIELDS[calcKey].map((k) => {
             const f = FIELDS[k];
-            const hint = hintFor(k);
             return (
-              <div key={k} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <label htmlFor={`calc-${k}`} style={{ fontSize: 13, fontWeight: 700 }}>{labelFor(k)}</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, minHeight: 48, padding: "0 12px", border: `1.5px solid ${C.line}`, background: C.card }}>
-                  {f.pre && <span style={{ color: C.inkSoft }}>{f.pre}</span>}
-                  <input
-                    id={`calc-${k}`}
-                    value={vals[k]}
-                    onChange={set(k)}
-                    inputMode={f.decimal ? "decimal" : "numeric"}
-                    placeholder={f.ph || ""}
-                    style={{ flex: 1, minWidth: 0, minHeight: 44, border: "none", background: "transparent", fontFamily: mono, fontSize: 16, color: C.ink }}
-                  />
-                  {f.suf && <span style={{ color: C.inkSoft, fontSize: 13 }}>{f.suf}</span>}
-                </div>
-                {hint && <span style={{ fontSize: 12, color: C.inkSoft }}>{hint}</span>}
-              </div>
+              <Slider
+                key={k}
+                id={`calc-${k}`}
+                label={labelFor(k)}
+                value={vals[k]}
+                onChange={set(k)}
+                min={f.min} max={f.max} step={f.step} rest={f.rest}
+                pre={f.pre} suf={f.suf} decimal={f.decimal}
+                hint={hintFor(k) || f.hint}
+              />
             );
           })}
         </div>
@@ -371,7 +366,7 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
             const on = s.key === stage;
             return (
               <button key={s.key} onClick={() => onView({ calc: null, stage: s.key })} aria-pressed={on}
-                style={{ flexShrink: 0, minHeight: 38, padding: "0 12px", border: `1px solid ${on ? C.ink : C.line}`, background: on ? C.ink : C.card, color: on ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                style={{ flexShrink: 0, minHeight: 44, padding: "0 12px", border: `1px solid ${on ? C.ink : C.line}`, background: on ? C.ink : C.card, color: on ? "#fff" : C.ink, fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {s.label}
               </button>
             );
@@ -382,8 +377,8 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
             <div style={{ fontSize: 14.5, fontWeight: 700, lineHeight: 1.35 }}>{a.t}</div>
             <div style={{ fontSize: 13.5, color: C.inkSoft, lineHeight: 1.55, marginTop: 4 }}>{a.b}</div>
             {a.calc && (
-              <button onClick={() => onView({ calc: a.calc, stage })} style={{ marginTop: 8, minHeight: 38, padding: "0 12px", border: `1px solid ${C.accent}`, background: "none", color: C.accentText, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                Open the {CALCS.find((c) => c.key === a.calc).title.toLowerCase()} calculator
+              <button onClick={() => onView({ calc: a.calc, stage })} style={{ marginTop: 8, minHeight: 44, padding: "0 12px", border: `1px solid ${C.accent}`, background: "none", color: C.accentText, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                Open the calculator: {CALCS.find((c) => c.key === a.calc).title} →
               </button>
             )}
           </div>

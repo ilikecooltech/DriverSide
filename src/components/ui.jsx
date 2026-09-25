@@ -243,7 +243,62 @@ export function DecodeLine({ line, chip, open, onToggle }) {
   );
 }
 
-/* − / + stepper row (44px targets; sliders removed by design). */
+/* Slider with the number beside it. Drag for the ballpark, type the
+   exact figure, or nudge with − / + when `nudge` is on (for numbers that
+   need to land exactly, like a filter). `value` may be "" (not set yet):
+   the thumb then sits greyed at `rest` and the number shows a dash until
+   they touch it, so nothing is invented. */
+export function Slider({ id, label, value, min, max, step = 1, onChange, format, hint, pre, suf, decimal = false, rest, nudge = false, typeable = true }) {
+  const unset = value === "" || value === null || value === undefined;
+  const numVal = unset ? (rest ?? min) : Number(value);
+  const clamped = Math.min(max, Math.max(min, Number.isFinite(numVal) ? numVal : min));
+  const fill = ((clamped - min) / (max - min || 1)) * 100;
+  const decimals = decimal ? (String(step).split(".")[1] || "").length : 0;
+  const emit = (n) => onChange(decimal ? Number(n).toFixed(decimals) : String(Math.round(n)));
+  const shown = unset ? "" : format ? format(Number(value)) : String(value);
+  const nbtn = { width: 44, height: 44, flexShrink: 0, border: `1px solid ${C.line}`, background: C.paper, fontSize: 18, fontWeight: 700, cursor: "pointer", color: C.ink };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <label htmlFor={id} style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, flex: 1, minWidth: 0 }}>{label}</label>
+        {typeable ? (
+          <span style={{ display: "flex", alignItems: "center", gap: 3, minHeight: 44, padding: "0 10px", border: `1.5px solid ${C.line}`, background: C.card, maxWidth: "52%" }}>
+            {pre && <span style={{ color: C.inkSoft, fontSize: 14 }}>{pre}</span>}
+            <input
+              aria-label={`${label}, exact`}
+              value={unset ? "" : value}
+              onChange={(e) => onChange(e.target.value.replace(decimal ? /[^0-9.]/g : /\D/g, ""))}
+              inputMode={decimal ? "decimal" : "numeric"}
+              placeholder="—"
+              style={{ width: `${Math.max(3, String(unset ? "" : value).length + 1)}ch`, minWidth: "3ch", maxWidth: "9ch", minHeight: 40, border: "none", background: "transparent", fontFamily: mono, fontSize: 16, fontWeight: 800, color: C.ink, textAlign: "right" }}
+            />
+            {suf && <span style={{ color: C.inkSoft, fontSize: 12.5, whiteSpace: "nowrap" }}>{suf}</span>}
+          </span>
+        ) : (
+          <span style={{ fontFamily: mono, fontSize: 16, fontWeight: 800, whiteSpace: "nowrap" }}>{shown || "—"}</span>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {nudge && <button type="button" onClick={() => emit(Math.max(min, clamped - step))} aria-label={`Lower ${label}`} style={nbtn}>−</button>}
+        <input
+          id={id}
+          type="range"
+          className={`ds-range${unset ? " ds-unset" : ""}`}
+          min={min} max={max} step={step}
+          value={clamped}
+          onChange={(e) => emit(Number(e.target.value))}
+          aria-valuetext={shown || "not set"}
+          style={{ "--fill": `${unset ? 0 : fill}%`, flex: 1, minWidth: 0 }}
+        />
+        {nudge && <button type="button" onClick={() => emit(Math.min(max, clamped + step))} aria-label={`Raise ${label}`} style={nbtn}>+</button>}
+      </div>
+      {hint && <span style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.4 }}>{hint}</span>}
+    </div>
+  );
+}
+
+/* − / + stepper row (44px targets). Kept at the dealer's table on purpose:
+   exact $250 moves with one thumb beat dragging while someone watches. */
 export function StepperRow({ label, value, fmt, onDown, onUp, stepLabel }) {
   const btn = { width: 44, height: 44, border: `1px solid ${C.line}`, background: C.paper, fontSize: 18, fontWeight: 700, cursor: "pointer", color: C.ink };
   return (

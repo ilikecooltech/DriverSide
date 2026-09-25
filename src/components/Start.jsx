@@ -162,7 +162,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
           <p style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 3, marginBottom: 0, lineHeight: 1.5 }}>{resume.line}</p>
           <button
             onClick={() => onEnter(resume.dest)}
-            style={{ marginTop: 9, background: C.green, color: "#fff", border: "none", fontFamily: heading, fontWeight: 600, fontSize: 13.5, padding: "9px 14px", minHeight: 40, cursor: "pointer" }}
+            style={{ marginTop: 9, background: C.green, color: "#fff", border: "none", fontFamily: heading, fontWeight: 600, fontSize: 13.5, padding: "9px 14px", minHeight: 44, cursor: "pointer" }}
           >
             {resume.cta}
           </button>
