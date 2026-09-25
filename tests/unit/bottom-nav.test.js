@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { NAV_ITEMS, isDealerSessionLive, DEAL_ENDED } from "../../src/components/BottomNav.jsx";
+import { NAV_ITEMS, ICON_PATHS, isDealerSessionLive, DEAL_ENDED } from "../../src/components/BottomNav.jsx";
 
 /* The nav makes two claims that have to stay true: five real
    destinations, and a live dot that means something. */
 
 describe("nav destinations", () => {
   it("has the five destinations in mockup order", () => {
-    expect(NAV_ITEMS.map((i) => i.key)).toEqual(["start", "shop", "garage", "finance", "dealer"]);
+    expect(NAV_ITEMS.map((i) => i.key)).toEqual(["start", "shop", "garage", "tools", "dealer"]);
   });
 
   it("labels and icons every destination", () => {
     for (const i of NAV_ITEMS) {
       expect(i.label, `${i.key} needs a label`).toBeTruthy();
-      expect(i.icon, `${i.key} needs an icon`).toBeTruthy();
+      expect(ICON_PATHS[i.key], `${i.key} needs an icon`).toBeTruthy();
     }
   });
 
@@ -20,9 +20,9 @@ describe("nav destinations", () => {
     expect(NAV_ITEMS.filter((i) => i.live).map((i) => i.key)).toEqual(["dealer"]);
   });
 
-  it("marks Finance as still being built", () => {
-    // Reachable and honest about it — not hidden, not a dead tab.
-    expect(NAV_ITEMS.filter((i) => i.pending).map((i) => i.key)).toEqual(["finance"]);
+  it("has no placeholder tabs", () => {
+    // Finance was a promise; Tools replaced it with working calculators.
+    expect(NAV_ITEMS.filter((i) => i.pending).map((i) => i.key)).toEqual([]);
   });
 });
 

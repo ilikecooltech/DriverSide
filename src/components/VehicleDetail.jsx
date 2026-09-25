@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { C, mono, heading, fmt, reducedMotion } from "../theme.js";
+import { C, mono, heading, fmt, reducedMotion, highlight } from "../theme.js";
+import { carShareText, shareOut } from "../lib/share.js";
 import { valueLabel, segmentMedian } from "../data/shopping.js";
 import { TX_TAX } from "../data/decode.js";
 import { Kicker, PrimaryBtn, VehicleImage } from "./ui.jsx";
@@ -54,7 +55,8 @@ export function outTheDoor(price, zip) {
   return { tx, tax, floor: price + (tax || 0) };
 }
 
-export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDealer }) {
+export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDealer, watching = false, onWatch, onShared }) {
+  const [shareNote, setShareNote] = useState(null);
   const photos = useMemo(() => {
     const list = Array.isArray(vehicle.photos) && vehicle.photos.length ? vehicle.photos : vehicle.image ? [vehicle.image] : [];
     return list;
@@ -138,6 +140,41 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
           </div>
         </section>
 
+        {/* Watch needs an account (texts reach you while the app is closed);
+            a second opinion never does. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {onWatch && (
+            <button
+              onClick={() => onWatch(vehicle)}
+              aria-pressed={watching}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: `1px solid ${watching ? C.accent : C.line}`, background: watching ? C.accentTint : C.card, cursor: "pointer", textAlign: "left", color: C.ink, fontFamily: "inherit" }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+              <span>
+                <b style={{ display: "block", fontSize: 14.5 }}>{watching ? "Watching this price" : "Watch this price"}</b>
+                <span style={{ display: "block", fontSize: 12.5, color: C.inkSoft, marginTop: 2, lineHeight: 1.4 }}>
+                  {watching ? "We'll let you know if it drops or hits 60 days on the lot. Tap to stop." : "Get a heads-up if it drops or hits 60 days on the lot."}
+                </span>
+              </span>
+            </button>
+          )}
+          <button
+            onClick={async () => {
+              const r = await shareOut({ title: title, text: carShareText(vehicle, median) });
+              setShareNote(r === "copied" ? "Copied. Paste it into a text." : r === "failed" ? "Couldn't open sharing on this device." : null);
+              onShared?.("car", r);
+            }}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: `1px solid ${C.line}`, background: C.card, cursor: "pointer", textAlign: "left", color: C.ink, fontFamily: "inherit" }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
+            <span>
+              <b style={{ display: "block", fontSize: 14.5 }}>Get a second opinion</b>
+              <span style={{ display: "block", fontSize: 12.5, color: C.inkSoft, marginTop: 2, lineHeight: 1.4 }}>Send this car to someone you trust. They don't need the app.</span>
+            </span>
+          </button>
+          {shareNote && <div role="status" style={{ fontSize: 12.5, color: C.green, fontWeight: 700 }}>{shareNote}</div>}
+        </div>
+
         <section aria-label="Your leverage">
           <Kicker style={{ marginBottom: 8 }}>YOUR LEVERAGE</Kicker>
           {lev.length ? (
@@ -174,7 +211,7 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
             <Row k={otd.tx ? "Texas sales tax (6.25%)" : "Sales tax"} v={otd.tx ? fmt(otd.tax) : "Depends on your state"} />
             <Row k="Dealer fees" v="Ask for them itemized" />
             <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 7 }}>
-              <Row k="Before fees, title and registration" v={fmt(otd.floor)} bold />
+              <Row k="Before fees, title and registration" v={fmt(otd.floor)} bold mark />
             </div>
           </div>
           <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6, lineHeight: 1.45 }}>
@@ -210,11 +247,11 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
   );
 }
 
-function Row({ k, v, bold }) {
+function Row({ k, v, bold, mark }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontWeight: bold ? 800 : 400 }}>
       <span>{k}</span>
-      <span style={{ fontFamily: mono, textAlign: "right" }}>{v}</span>
+      <span style={{ fontFamily: mono, textAlign: "right", ...(mark ? highlight(0.45) : {}) }}>{v}</span>
     </div>
   );
 }

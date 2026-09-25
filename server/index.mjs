@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { SNAPSHOT } from "./snapshot.mjs";
 import { toListing } from "./listing.mjs";
 import passHandler from "../api/pass.js";
+import demoLoginHandler from "../api/demo-login.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -104,6 +105,9 @@ app.get("/api/market", async (req, res) => {
    rather than reimplemented, so local and production cannot drift on the
    one surface where that would matter. */
 app.all("/api/pass", (req, res) => passHandler(req, res));
+
+/* Demo sign-in, mounted from the serverless handler for parity. */
+app.post("/api/demo-login", express.json(), (req, res) => demoLoginHandler(req, res));
 
 /* Inventory search for the Shop tab — parity with api/shop.js, sharing
    its listing shape from ./listing.mjs. */

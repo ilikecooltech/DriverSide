@@ -113,6 +113,8 @@ export function classifyIdentifier(raw) {
 export async function sendOtp(identifier) {
   const parsed = classifyIdentifier(identifier);
   if (parsed.kind === "invalid") return { ...parsed, error: { message: parsed.reason } };
+  /* The owner's demo number skips the SMS entirely (see api/demo-login). */
+  if (parsed.kind === "phone" && (await isDemoPhone(parsed.value))) return { ...parsed, demo: true };
   if (!supabase) return { ...parsed, simulated: true };
 
   const payload =
@@ -126,9 +128,10 @@ export async function sendOtp(identifier) {
 
 /* Verifies the code. `kind` and `value` come straight back from sendOtp.
    Supabase types: "email" for email OTP, "sms" for phone OTP. */
-export async function verifyOtp({ kind, value, token }) {
+export async function verifyOtp({ kind, value, token, demo }) {
   const code = String(token || "").replace(/\D/g, "");
   if (code.length < 6) return { error: { message: "Enter the 6-digit code." } };
+  if (demo) return verifyDemo(value, code);
   if (!supabase) return { simulated: true };
 
   const payload =
@@ -146,12 +149,66 @@ export async function signInWithEmail(email) {
 }
 
 export async function getSession() {
+  const demo = readDemoSession();
+  if (demo) return demo;
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
   return data?.session || null;
 }
 
 export async function signOut() {
+  clearDemoSession();
   if (!supabase) return;
   await supabase.auth.signOut();
+}
+
+/* ── Demo sign-in ─────────────────────────────────────────────────────
+   One number and one code, both configured server-side (DEMO_PHONE,
+   DEMO_CODE). The session is a plain local record: it unlocks the
+   signed-in experience on this device and nothing else, because no
+   account data lives on a server yet. */
+
+const DEMO_KEY = "driverside.demo-session";
+
+async function isDemoPhone(phone) {
+  try {
+    const r = await fetch("/api/demo-login?action=check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "check", phone }),
+    });
+    return r.ok && Boolean((await r.json())?.demo);
+  } catch {
+    return false;
+  }
+}
+
+async function verifyDemo(phone, code) {
+  try {
+    const r = await fetch("/api/demo-login?action=verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verify", phone, code }),
+    });
+    const d = await r.json().catch(() => null);
+    if (!r.ok || !d?.ok) return { error: { message: "invalid code" } };
+    const session = { user: d.user, demo: true };
+    try { localStorage.setItem(DEMO_KEY, JSON.stringify(session)); } catch { /* private mode: session lasts this visit */ }
+    return { session };
+  } catch {
+    return { error: { message: "Couldn't verify that code. Try again." } };
+  }
+}
+
+function readDemoSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(DEMO_KEY) || "null");
+    return s?.user?.id ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearDemoSession() {
+  try { localStorage.removeItem(DEMO_KEY); } catch { /* ignore */ }
 }

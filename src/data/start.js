@@ -24,7 +24,6 @@ export const JOURNEY_DOORS = [
   },
   {
     key: "shop",
-    icon: "🔍",
     title: "Just looking",
     blurb: "Tell us the job the car has to do. We rank the live market by fit — never by ad spend.",
     cta: "SHOP BY GOAL →",
@@ -32,7 +31,6 @@ export const JOURNEY_DOORS = [
   },
   {
     key: "garage",
-    icon: "🚗",
     title: "I've found a car",
     blurb: "Save it to your Garage. We'll watch the price, the days on lot, and your leverage.",
     cta: "SAVE A CAR →",
@@ -40,19 +38,24 @@ export const JOURNEY_DOORS = [
   },
   {
     key: "finance",
-    icon: "💵",
     title: "Getting my money ready",
-    blurb: "Direct vs. dealer financing, what the loan really costs, and the true cost of ownership.",
-    cta: "FINANCE →",
-    dest: { tab: "finance" },
+    blurb: "Calculators for your rate, your budget and your trade-in. What the loan really costs.",
+    cta: "TOOLS →",
+    dest: { tab: "tools" },
   },
   {
     key: "quote",
-    icon: "🧾",
     title: "I already have a quote",
     blurb: "Photograph any worksheet or four-square. We'll tell you which lines are real.",
     cta: "DECODE IT →",
     dest: { tab: "dealer", dealView: "capture" },
+  },
+  {
+    key: "bought",
+    title: "I already bought",
+    blurb: "Cancel add-ons you didn't want, check your loan, and help the next buyer near you.",
+    cta: "AFTER YOU BUY →",
+    dest: { tab: "tools", toolsStage: "after" },
   },
 ];
 
@@ -121,4 +124,30 @@ export function statsFromShop(data) {
   }
 
   return tiles;
+}
+
+/* Your plan: five steps, each marked done only from what's actually on the
+   device. Same rule as the resume card: nothing we can't stand behind.
+   `setup.aprSet` is true once the buyer has entered their own rate (the
+   7.2% default is a placeholder, not a pre-approval). */
+export function planSteps({ setup = {}, cars = [], watchingCount = 0, hasDeal = false, affordMax = null } = {}) {
+  const fmtUsd = (n) => "$" + Math.round(n).toLocaleString();
+  const rate = setup.aprSet && setup.apr ? setup.apr : null;
+  return [
+    rate
+      ? { key: "rate", done: true, title: `Pre-approved at ${rate}%`, line: "Dealers have to beat it", dest: { tab: "tools", toolsCalc: "rates" } }
+      : { key: "rate", done: false, title: "Get pre-approved", line: "A rate from your bank or credit union", dest: { tab: "tools", toolsCalc: "rates" } },
+    affordMax
+      ? { key: "budget", done: true, title: `Shop under ${fmtUsd(affordMax)}`, line: `${fmtUsd(setup.budget)}/mo for ${setup.term || 60} months`, dest: { tab: "tools", toolsCalc: "afford" } }
+      : { key: "budget", done: false, title: "Set your budget", line: "Turn a monthly number into a price", dest: { tab: "tools", toolsCalc: "afford" } },
+    cars.length
+      ? { key: "cars", done: true, title: `${cars.length} car${cars.length === 1 ? "" : "s"} saved`, line: "Same numbers, side by side", dest: { tab: "garage" } }
+      : { key: "cars", done: false, title: "Save the cars you like", line: "Compare them without a spreadsheet", dest: { tab: "shop", needsGoal: true } },
+    watchingCount
+      ? { key: "watch", done: true, title: `Watching ${watchingCount} price${watchingCount === 1 ? "" : "s"}`, line: "Drops and the 60-day mark", dest: { tab: "garage" } }
+      : { key: "watch", done: false, title: "Watch a price", line: "From any car's page", dest: { tab: cars.length ? "garage" : "shop", needsGoal: !cars.length } },
+    hasDeal
+      ? { key: "quote", done: true, title: "Quote decoded", line: "Your numbers for the desk", dest: { tab: "dealer", dealView: "decoder" } }
+      : { key: "quote", done: false, title: "Decode their quote", line: "Before you sign anything", dest: { tab: "dealer", dealView: "capture" } },
+  ];
 }

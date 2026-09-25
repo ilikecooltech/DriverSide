@@ -5,9 +5,9 @@ import { JOURNEY_DOORS, resumeSummary, statsFromShop } from "../../src/data/star
    every door goes straight in with no account step, and every number on
    the screen is one we can actually source. Both are pinned here. */
 
-describe("the five doors", () => {
-  it("offers exactly the five journeys, dealer first", () => {
-    expect(JOURNEY_DOORS).toHaveLength(5);
+describe("the six doors", () => {
+  it("offers exactly the six journeys, dealer first", () => {
+    expect(JOURNEY_DOORS).toHaveLength(6);
     expect(JOURNEY_DOORS[0].key).toBe("dealer");
     expect(JOURNEY_DOORS[0].urgent).toBe(true);
   });
@@ -31,8 +31,8 @@ describe("the five doors", () => {
   });
 
   it("has unique keys and no duplicate calls to action", () => {
-    expect(new Set(JOURNEY_DOORS.map((d) => d.key)).size).toBe(5);
-    expect(new Set(JOURNEY_DOORS.map((d) => d.cta)).size).toBe(5);
+    expect(new Set(JOURNEY_DOORS.map((d) => d.key)).size).toBe(6);
+    expect(new Set(JOURNEY_DOORS.map((d) => d.cta)).size).toBe(6);
   });
 
   it("never re-introduces the duplicate guest CTA", () => {
@@ -120,5 +120,24 @@ describe("statsFromShop", () => {
     for (const bad of [null, undefined, {}, { listings: "nope" }, { source: "live", count: NaN, listings: [] }]) {
       expect(Array.isArray(statsFromShop(bad))).toBe(true);
     }
+  });
+});
+
+import { planSteps } from "../../src/data/start.js";
+
+describe("planSteps", () => {
+  it("marks nothing done on a first visit", () => {
+    expect(planSteps({}).filter((s) => s.done)).toHaveLength(0);
+  });
+
+  it("does not count the placeholder APR as a pre-approval", () => {
+    expect(planSteps({ setup: { apr: 7.2 } })[0].done).toBe(false);
+    expect(planSteps({ setup: { apr: 6.9, aprSet: true } })[0].title).toBe("Pre-approved at 6.9%");
+  });
+
+  it("reports only what's on the device", () => {
+    const s = planSteps({ setup: { apr: 6.9, aprSet: true, budget: 450, term: 60 }, cars: [{ id: "a" }], watchingCount: 1, hasDeal: false, affordMax: 24264 });
+    expect(s.map((x) => x.done)).toEqual([true, true, true, true, false]);
+    expect(s[1].title).toBe("Shop under $24,264");
   });
 });
