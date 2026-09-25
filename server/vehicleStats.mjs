@@ -146,6 +146,12 @@ export async function decodeVin(vin, fetchImpl = fetch) {
   return fromVin(j?.Results?.[0]);
 }
 
+/* With no trim to go on, assume the base engine: the smallest one. */
+export function baseEngine(options) {
+  const litres = (o) => Number((o.text.match(/([\d.]+)\s*L\b/) || [])[1]) || Infinity;
+  return [...options].sort((a, b) => litres(a) - litres(b))[0];
+}
+
 async function epaFor({ year, make, model, trim, epaId }, fetchImpl) {
   let id = epaId;
   let options = [];
@@ -157,7 +163,7 @@ async function epaFor({ year, make, model, trim, epaId }, fetchImpl) {
     options = await menu("options", { year, make, model: epaModel }, fetchImpl);
     if (!options.length) return { epa: null, options, epaModel };
     const t = words(trim);
-    const pick = options.find((o) => t.some((w) => w.length > 2 && words(o.text).includes(w))) || options[0];
+    const pick = options.find((o) => t.some((w) => w.length > 2 && words(o.text).includes(w))) || baseEngine(options);
     id = pick.value;
   }
   const v = await getJson(`${FE}/vehicle/${encodeURIComponent(id)}`, fetchImpl);

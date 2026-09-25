@@ -51,7 +51,7 @@ describe("vehicleStats", () => {
   const routes = {
     "menu/model": { menuItem: [{ text: "Camry", value: "Camry" }, { text: "Camry Hybrid LE", value: "Camry Hybrid LE" }] },
     "menu/options": { menuItem: [{ text: "Auto (S8), 6 cyl, 3.5 L", value: "40606" }, { text: "Auto (S8), 4 cyl, 2.5 L", value: "40609" }] },
-    "vehicle/40606": { id: 40606, city08: 22, highway08: 32, comb08: 26, VClass: "Midsize Cars", drive: "Front-Wheel Drive", atvType: "" },
+    "vehicle/40609": { id: 40609, city08: 29, highway08: 41, comb08: 34, VClass: "Midsize Cars", drive: "Front-Wheel Drive", atvType: "" },
     "modelyear/2019": { Results: [{ VehicleId: 13200, VehicleDescription: "2019 Toyota Camry 4 DR FWD" }] },
     "VehicleId/13200": { Results: [{ OverallRating: "5", RecallsCount: 6, ComplaintsCount: 395 }] },
   };
@@ -63,7 +63,7 @@ describe("vehicleStats", () => {
 
   it("combines EPA, NHTSA and the repair estimate", async () => {
     const s = await vehicleStats({ year: "2019", make: "Toyota", model: "Camry" }, { fetchImpl, marketKey: "", nowYear: 2026 });
-    expect(s).toMatchObject({ ok: true, year: 2019, mpgComb: 26, sizeClass: "Midsize Cars", seats: null, epaModel: "Camry" });
+    expect(s).toMatchObject({ ok: true, year: 2019, mpgComb: 34, sizeClass: "Midsize Cars", seats: null, epaModel: "Camry" });
     expect(s.safety).toMatchObject({ overall: 5, recalls: 6 });
     expect(s.upkeep.perYear).toBeGreaterThan(441);
     expect(s.epaOptions).toHaveLength(2);
@@ -87,5 +87,12 @@ describe("NHTSA model names", () => {
     const { modelCandidates } = await import("../../server/vehicleStats.mjs");
     expect(modelCandidates("RAV4 Hybrid AWD")).toEqual(["RAV4 Hybrid AWD", "RAV4 Hybrid", "RAV4"]);
     expect(modelCandidates("Camry")).toEqual(["Camry"]);
+  });
+});
+
+describe("engine choice", () => {
+  it("assumes the base (smallest) engine when the trim doesn't say", async () => {
+    const { baseEngine } = await import("../../server/vehicleStats.mjs");
+    expect(baseEngine([{ text: "Auto (S8), 6 cyl, 3.5 L", value: "40606" }, { text: "Auto (S8), 4 cyl, 2.5 L", value: "40609" }]).value).toBe("40609");
   });
 });
