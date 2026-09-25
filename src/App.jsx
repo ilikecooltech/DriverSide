@@ -26,6 +26,7 @@ import { Profile } from "./components/Profile.jsx";
 import { SignInPrompt } from "./components/SignInPrompt.jsx";
 import { requiresAccount } from "./lib/account.js";
 import { useNavHistory } from "./lib/navHistory.js";
+import { useGasPrice } from "./lib/gas.js";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -58,6 +59,9 @@ export default function App() {
   const [archetype, setArchetype] = useState(persisted.archetype || null);
   const [setup, setSetup] = useState({ ...DEFAULT_SETUP, ...(persisted.setup || {}) });
   const [cars, setCars] = useState(persisted.cars || []);
+  /* Cars the buyer already owns. Kept apart from the shopping list (no
+     price, no match score) but compared against it everywhere. */
+  const [owned, setOwned] = useState(persisted.owned || []);
   const [connections, setConnections] = useState(persisted.connections || {});
 
   const [tab, setTab] = useState("shop");
@@ -156,8 +160,11 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, connections, pass, watching });
-  }, [archetype, setup, cars, connections, pass, watching]);
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, connections, pass, watching });
+  }, [archetype, setup, cars, owned, connections, pass, watching]);
+
+  // This week's gas price near their ZIP, for the calculators and the Garage.
+  const gas = useGasPrice(setup.zip || "77471");
 
   /* Tools writes single fields; the profile sheet writes the whole setup.
      Both merge, so neither wipes what the other saved. */
@@ -188,7 +195,7 @@ export default function App() {
     resetIdentity();
     clearState();
     setAuth(null); setShowProfile(false); setTab("shop");
-    setOnboarded(false); setArchetype(null); setCars([]); setConnections({}); setWatching([]);
+    setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setConnections({}); setWatching([]);
     setSetup(DEFAULT_SETUP); setDeal(null); setDealView("capture");
     setDecodeCount(0); setPass(null);
   };
@@ -200,6 +207,16 @@ export default function App() {
     track("vehicle_saved", { vehicle: car.title, price: car.price, source: car.src });
   };
   const removeCar = (id) => setCars((prev) => prev.filter((c) => c.id !== id));
+  const addOwned = (car) => {
+    setOwned((prev) => (prev.some((c) => c.id === car.id) ? prev : [...prev, car]));
+    track("owned_car_added", { vehicle: car.title, has_mpg: Boolean(car.stats?.mpgCity), has_safety: Boolean(car.stats?.safety?.overall) });
+  };
+  const removeOwned = (id) => setOwned((prev) => prev.filter((c) => c.id !== id));
+  /* Looked-up stats are saved with the car, owned or shopping. */
+  const setCarStats = (id, stats) => {
+    const merge = (list) => list.map((c) => (c.id === id ? { ...c, stats: { ...(c.stats || {}), ...stats } } : c));
+    setCars(merge); setOwned(merge);
+  };
   const rankCar = (from, to) =>
     setCars((prev) => {
       const next = [...prev];
@@ -591,7 +608,7 @@ export default function App() {
           onConnect={connect} onDisconnect={disconnect}
           onSaveSetup={(s) => { saveSetup({ ...s, aprSet: true }); track("setup_updated"); }}
           onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
-          onSignOut={handleSignOut} onBack={() => setShowProfile(false)}
+          onSignOut={handleSignOut} onBack={() => setShowProfile(false)} hideBack={showBack}
           onRequireAccount={requireAccount}
         />
       ) : (
@@ -624,6 +641,9 @@ export default function App() {
             <Tools
               setup={setup}
               cars={cars}
+              owned={owned}
+              gas={gas}
+              onCarStats={setCarStats}
               signedIn={auth === "account"}
               view={toolsView}
               onView={(v) => { setToolsView(v); if (v.calc) track("tool_opened", { calc: v.calc }); }}
@@ -648,6 +668,7 @@ export default function App() {
                 <Garage
                   cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
                   onAdd={addCar} onRemove={removeCar} onRank={rankCar}
+                  owned={owned} onAddOwned={addOwned} onRemoveOwned={removeOwned} onCarStats={setCarStats} gas={gas}
                   onShop={() => setTab("shop")}
                   onOpen={openVehicle}
                   watchingIds={watching}

@@ -76,7 +76,7 @@ function SetupEditor({ setup, onSave, onCancel }) {
 
 export function Profile({
   name, isGuest, archetypeName, setup, connections, onConnect, onDisconnect,
-  onSaveSetup, onEditGoal, onSignOut, onBack, onRequireAccount,
+  onSaveSetup, onEditGoal, onSignOut, onBack, hideBack = false, onRequireAccount,
 }) {
   const [editing, setEditing] = useState(false);
   const [al, setAl] = useState({ 0: true, 1: true, 2: false });
@@ -86,7 +86,8 @@ export function Profile({
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
-      <button onClick={onBack} style={{ minHeight: 40, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 4 }}>← Back</button>
+      {/* The app bar already shows a named Back when there is somewhere to go back to. */}
+      {!hideBack && <button onClick={onBack} style={{ minHeight: 40, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 4 }}>← Back</button>}
 
       {isGuest && (
         <div style={{ border: `1px solid ${C.amber}`, background: C.amberBg, padding: "12px 14px", marginBottom: 16 }}>

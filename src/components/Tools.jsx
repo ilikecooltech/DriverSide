@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { C, mono, heading, fmt, highlight } from "../theme.js";
 import { Kicker } from "./ui.jsx";
 import {
   paymentPlan, affordability, rateGap, tradeIn, hybridPayback, outTheDoorCheck, STAGES, ADVICE,
 } from "../data/tools.js";
+import { compareChoices } from "../data/owned.js";
+import { lookupStats } from "./CarStats.jsx";
 
 /* Tools — replaces the interim Finance tab.
 
@@ -49,7 +51,7 @@ const FIELDS = {
 /* Which setup key each shared field reads from and writes back to. */
 const SETUP_KEYS = { apr: "apr", term: "term", down: "down", budget: "budget", trade: "tradeValue", payoff: "tradePayoff" };
 
-export function seedValues(setup = {}, cars = []) {
+export function seedValues(setup = {}, cars = [], gas = null) {
   const s = setup || {};
   return {
     price: cars[0]?.price ? String(cars[0].price) : "",
@@ -62,7 +64,9 @@ export function seedValues(setup = {}, cars = []) {
     amount: "",
     trade: s.tradeValue ? String(s.tradeValue) : "",
     payoff: s.tradePayoff ? String(s.tradePayoff) : "",
-    priceGap: "", gasCity: "", gasHwy: "", hybCity: "", hybHwy: "", miles: "", gasPrice: "",
+    priceGap: "", gasCity: "", gasHwy: "", hybCity: "", hybHwy: "", miles: "",
+    gasPrice: gas?.price ? gas.price.toFixed(2) : "",
+    pickA: "", pickB: "", nameA: "", nameB: "",
     addons: "", docFee: "", titleReg: "",
   };
 }
@@ -117,11 +121,14 @@ export function runCalc(key, v, cars = []) {
     }
     case "hybrid": {
       const h = hybridPayback(v);
-      if (!h) return { big: "Add the numbers", sub: "both cars' EPA mpg, your miles and gas price", rows: [], peek: "Fuel payback",
-        note: "EPA city and highway mpg are on the window sticker and on every listing's detail page." };
-      return { big: h.years === null ? "It won't" : h.years < 1 ? "Under a year" : `${h.years.toFixed(1)} years`, sub: "for the hybrid to pay back its higher price",
+      const a = v.nameA || "Gas version", b = v.nameB || "Hybrid";
+      if (!h) return { big: "Add the numbers", sub: "both cars' mpg, your miles and gas price", rows: [], peek: "Fuel payback",
+        note: "Pick cars from your garage to fill in their mpg, or type them from the window sticker." };
+      const switching = v.kindA === "owned";
+      return { big: h.years === null ? "It won't" : h.years < 1 ? "Under a year" : `${h.years.toFixed(1)} years`,
+        sub: switching ? `for the fuel savings to cover what switching costs` : `for ${v.nameB ? "the second car" : "the hybrid"} to pay back its higher price`,
         peek: h.years ? `${h.years.toFixed(1)} yr payback` : "No payback",
-        rows: [["Gas version, fuel a year", fmt(h.gasFuel)], ["Hybrid, fuel a year", fmt(h.hybFuel)], ["You save a year", fmt(h.saved), true]],
+        rows: [[`${a}, gas a year`, fmt(h.gasFuel)], [`${b}, gas a year`, fmt(h.hybFuel)], [h.saved >= 0 ? "You save a year" : "It costs you more a year", fmt(Math.abs(h.saved)), true]],
         note: "Assumes 55% city driving. Mostly town driving makes a hybrid pay back faster." };
     }
     case "otd": {
@@ -154,12 +161,51 @@ const INTRO = {
   afford: "Turns a monthly budget into the most you should pay for a car. Shop by this number, not by the payment.",
   rates: "The finance office often marks up the rate. See what a point or two costs you.",
   trade: "Texas taxes the price minus your trade, so a trade-in is worth more than its offer.",
-  hybrid: "Does the hybrid earn back its higher price in fuel?",
+  hybrid: "Does the hybrid earn back its higher price in fuel? Compare any two cars, including the one you drive now.",
   otd: "Type in the dealer's sheet line by line. This is the one number to negotiate.",
 };
 
-export function Tools({ setup, cars = [], signedIn, view, onView, onSaveSetup, onOpenCar }) {
-  const [vals, setVals] = useState(() => seedValues(setup, cars));
+/* Hybrid or gas: pick either car from the garage (owned or shopping)
+   and fill its mpg. A shopping car without mpg on file gets looked up. */
+export function applyPick(prev, slot, choice) {
+  const [city, hwy, name, pick, kind] = slot === "A" ? ["gasCity", "gasHwy", "nameA", "pickA", "kindA"] : ["hybCity", "hybHwy", "nameB", "pickB", "kindB"];
+  const next = { ...prev, [pick]: choice?.id || "", [name]: choice ? shortName(choice.title) : "", [kind]: choice?.kind || "" };
+  if (choice?.mpgCity) next[city] = String(choice.mpgCity);
+  if (choice?.mpgHwy) next[hwy] = String(choice.mpgHwy);
+  // Their own car knows how far they drive.
+  if (choice?.milesPerYear && !prev.miles) next.miles = String(choice.milesPerYear);
+  const A = slot === "A" ? choice : prev._A, B = slot === "B" ? choice : prev._B;
+  next._A = A || null; next._B = B || null;
+  if (A?.kind === "shopping" && B?.kind === "shopping" && A.price && B.price) next.priceGap = String(Math.max(0, B.price - A.price));
+  return next;
+}
+const shortName = (t) => String(t || "").split(" ").slice(0, 5).join(" ");
+
+export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view, onView, onSaveSetup, onOpenCar, onCarStats }) {
+  const [vals, setVals] = useState(() => seedValues(setup, cars, gas));
+  const [picking, setPicking] = useState("");
+  const choices = useMemo(() => compareChoices(owned, cars), [owned, cars]);
+
+  // Gas price usually arrives after the screen opens; fill it if still blank.
+  useEffect(() => {
+    if (gas?.price) setVals((prev) => (prev.gasPrice ? prev : { ...prev, gasPrice: gas.price.toFixed(2) }));
+  }, [gas?.price]);
+
+  const pick = async (slot, id) => {
+    const choice = choices.find((c) => c.id === id) || null;
+    setVals((prev) => applyPick(prev, slot, choice));
+    if (choice && !(choice.mpgCity && choice.mpgHwy)) {
+      const car = [...owned, ...cars].find((c) => c.id === id);
+      if (!car) return;
+      setPicking(slot);
+      try {
+        const stats = await lookupStats(car);
+        onCarStats?.(id, stats);
+        setVals((prev) => applyPick(prev, slot, { ...choice, mpgCity: stats.mpgCity, mpgHwy: stats.mpgHwy }));
+      } catch { /* leave the fields for them to type */ }
+      setPicking("");
+    }
+  };
   const calcKey = view?.calc || null;
   const stage = view?.stage || "before";
 
@@ -174,6 +220,23 @@ export function Tools({ setup, cars = [], signedIn, view, onView, onSaveSetup, o
   };
 
   const peeks = useMemo(() => Object.fromEntries(CALCS.map((c) => [c.key, runCalc(c.key, vals, cars)?.peek])), [vals, cars]);
+
+  const labelFor = (k) => {
+    if (calcKey !== "hybrid") return FIELDS[k].label;
+    const a = vals.nameA, b = vals.nameB;
+    if (k === "gasCity" && a) return `${a}: city mpg`;
+    if (k === "gasHwy" && a) return `${a}: highway mpg`;
+    if (k === "hybCity" && b) return `${b}: city mpg`;
+    if (k === "hybHwy" && b) return `${b}: highway mpg`;
+    if (k === "priceGap" && vals.kindA === "owned") return "What switching costs you (price minus your trade-in)";
+    if (k === "priceGap" && a && b) return `How much more the ${b} costs`;
+    return FIELDS[k].label;
+  };
+  const hintFor = (k) => {
+    if (k === "gasPrice" && gas?.price && vals.gasPrice === gas.price.toFixed(2)) return `This week's ${gas.label} (EIA). Change it if you pay more.`;
+    if (k === "miles" && !vals.miles) return "12,000 is typical.";
+    return null;
+  };
 
   const saveLine = signedIn ? "SAVED TO YOUR ACCOUNT" : "STAYS ON THIS PHONE";
   const wrap = { flex: 1, overflowY: "auto", padding: 16, minHeight: 0, display: "flex", flexDirection: "column", gap: 18 };
@@ -191,12 +254,39 @@ export function Tools({ setup, cars = [], signedIn, view, onView, onSaveSetup, o
           <div style={{ fontFamily: heading, fontWeight: 700, fontSize: 32, lineHeight: 1.05 }}>{r.big}</div>
           {r.sub && <div style={{ fontSize: 13, color: "#C9D3E0", marginTop: 4 }}>{r.sub}</div>}
         </div>
+        {calcKey === "hybrid" && choices.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[["A", "Car 1", "pickA"], ["B", "Car 2", "pickB"]].map(([slot, label, key]) => (
+              <div key={slot} style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+                <label htmlFor={`pick-${slot}`} style={{ fontSize: 13, fontWeight: 700 }}>{label}{picking === slot ? " · looking up mpg…" : ""}</label>
+                <select id={`pick-${slot}`} value={vals[key]} onChange={(e) => pick(slot, e.target.value)}
+                  style={{ minHeight: 48, padding: "0 8px", border: `1.5px solid ${C.line}`, background: C.card, color: C.ink, fontSize: 13.5, fontWeight: 600, minWidth: 0 }}>
+                  <option value="">From your garage…</option>
+                  {choices.some((c) => c.kind === "owned") && (
+                    <optgroup label="Yours">
+                      {choices.filter((c) => c.kind === "owned").map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    </optgroup>
+                  )}
+                  {choices.some((c) => c.kind === "shopping") && (
+                    <optgroup label="Shopping">
+                      {choices.filter((c) => c.kind === "shopping").map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+        {calcKey === "hybrid" && choices.length === 0 && (
+          <p style={{ margin: 0, fontSize: 13, color: C.inkSoft }}>Save cars to your Garage, or add the one you own, and you can pick them here instead of typing mpg.</p>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {CALC_FIELDS[calcKey].map((k) => {
             const f = FIELDS[k];
+            const hint = hintFor(k);
             return (
               <div key={k} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <label htmlFor={`calc-${k}`} style={{ fontSize: 13, fontWeight: 700 }}>{f.label}</label>
+                <label htmlFor={`calc-${k}`} style={{ fontSize: 13, fontWeight: 700 }}>{labelFor(k)}</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, minHeight: 48, padding: "0 12px", border: `1.5px solid ${C.line}`, background: C.card }}>
                   {f.pre && <span style={{ color: C.inkSoft }}>{f.pre}</span>}
                   <input
@@ -209,6 +299,7 @@ export function Tools({ setup, cars = [], signedIn, view, onView, onSaveSetup, o
                   />
                   {f.suf && <span style={{ color: C.inkSoft, fontSize: 13 }}>{f.suf}</span>}
                 </div>
+                {hint && <span style={{ fontSize: 12, color: C.inkSoft }}>{hint}</span>}
               </div>
             );
           })}
