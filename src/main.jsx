@@ -1,6 +1,15 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import { themeCss } from "./theme.js";
+
+// Brand colors as CSS variables (light at :root, dark under .ds-dark).
+if (typeof document !== "undefined") {
+  const el = document.createElement("style");
+  el.id = "ds-theme";
+  el.textContent = themeCss();
+  document.head.appendChild(el);
+}
 
 /* A blank screen is the worst failure this product can have: a buyer
    standing in a finance office learns nothing from it, and it destroys

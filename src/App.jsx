@@ -578,8 +578,9 @@ export default function App() {
      useNavHistory). */
   const backTarget = nav.back();
   const showBack = Boolean(backTarget) && (inVehicle || showProfile || (tab === "tools" && Boolean(toolsView.calc)) || (tab === "dealer" && (!["capture", "decoder", "home", "live"].includes(dealView) || (Boolean(dealerSession) && ["capture", "decoder"].includes(dealView)))));
-  /* Dealer mode is the brand at night: dark chrome for the pick and the live session. */
-  const dark = tab === "dealer" && ["home", "live"].includes(dealView) && !showProfile;
+  /* Dealer mode is the brand at night: the whole Dealer tab goes dark,
+     from picking the car through the decoder and the outcome screens. */
+  const dark = tab === "dealer" && !showProfile;
 
   const dealerSessionActive = isDealerSessionLive(deal, dealView);
 
@@ -907,7 +908,7 @@ function backLabel(s) {
 function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop, onHome, dark = false }) {
   const bg = dark ? D.bg : C.paper, bar = dark ? D.card : C.card, rule = dark ? D.rule : C.line;
   return (
-    <div style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
+    <div className={dark ? "ds-dark" : undefined} style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
       <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: bg, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${rule}`, borderRight: `1px solid ${rule}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}

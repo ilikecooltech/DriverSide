@@ -104,7 +104,7 @@ export function Receipt({ deal, median, onDone }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
       <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
-        <div style={{ position: "relative", background: C.ink, color: "#fff", padding: 22, textAlign: "center", marginBottom: 16, border: `1px solid ${C.line}` }}>
+        <div style={{ position: "relative", background: C.ink, color: C.onInk, padding: 22, textAlign: "center", marginBottom: 16, border: `1px solid ${C.line}` }}>
           <Corners color="rgba(255,255,255,0.45)" />
           <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.16em", opacity: 0.7 }}>VS THEIR FIRST SHEET, YOU KEPT</div>
           <div style={{ fontFamily: mono, fontSize: 44, fontWeight: 800, margin: "6px 0 2px", color: C.onNavySuccess }}>{fmt(kept)}</div>
@@ -128,7 +128,7 @@ export function Receipt({ deal, median, onDone }) {
         <Kicker style={{ margin: "16px 0 2px" }}>BEFORE YOU DRIVE OFF — {done}/4</Kicker>
         {items.map((t, i) => (
           <button key={t} onClick={() => setChk({ ...chk, [i]: !chk[i] })} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", minHeight: 52, border: "none", borderBottom: `1px dashed ${C.line}`, background: "none", cursor: "pointer", textAlign: "left", padding: "6px 0" }}>
-            <span style={{ width: 22, height: 22, border: `1.5px solid ${chk[i] ? C.green : C.dash}`, background: chk[i] ? C.green : C.card, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{chk[i] ? "✓" : ""}</span>
+            <span style={{ width: 22, height: 22, border: `1.5px solid ${chk[i] ? C.greenFill : C.dash}`, background: chk[i] ? C.greenFill : C.card, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{chk[i] ? "✓" : ""}</span>
             <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: chk[i] ? C.inkSoft : C.ink }}>{t}</span>
           </button>
         ))}

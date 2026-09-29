@@ -315,7 +315,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
             than a toll booth. The rest are blurred behind the pass: you
             can see they exist and count them, you cannot read them. */}
         <div ref={refs.say} style={{ padding: "22px 0 88px" }}>
-          <div style={{ background: C.ink, color: "#fff", padding: 16 }}>
+          <div style={{ background: C.ink, color: C.onInk, padding: 16 }}>
             <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", opacity: 0.7, marginBottom: 10 }}>
               YOUR SCRIPTS — {market ? "LIVE MARKET NUMBERS" : "SAY IT LIKE THIS"}
             </div>
@@ -323,16 +323,16 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
             {scripts.map((sc, i) => {
               const locked = i > 0 && !hasPass;
               return (
-                <div key={sc.t} style={{ borderTop: i ? "1px solid rgba(255,255,255,0.14)" : "none", paddingTop: i ? 14 : 0, marginTop: i ? 14 : 0, position: "relative" }}>
+                <div key={sc.t} style={{ borderTop: i ? `1px solid ${C.dash}` : "none", paddingTop: i ? 14 : 0, marginTop: i ? 14 : 0, position: "relative" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.1em", opacity: 0.75 }}>{sc.t.toUpperCase()}</span>
                     {i === 0 && (
-                      <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: "0.06em", background: C.onNavySuccess, color: C.ink, padding: "2px 6px" }}>FREE</span>
+                      <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: "0.06em", background: C.onNavySuccess, color: "#0F1826", padding: "2px 6px" }}>FREE</span>
                     )}
                     {!locked && (
                       <button
                         onClick={() => copyScript(i, sc.body)}
-                        style={{ marginLeft: "auto", minHeight: 32, padding: "0 10px", border: "1px solid rgba(255,255,255,0.35)", background: "none", color: "#fff", fontFamily: mono, fontSize: 9.5, letterSpacing: "0.06em", cursor: "pointer" }}
+                        style={{ marginLeft: "auto", minHeight: 32, padding: "0 10px", border: `1px solid ${C.dash}`, background: "none", color: C.onInk, fontFamily: mono, fontSize: 9.5, letterSpacing: "0.06em", cursor: "pointer" }}
                       >
                         {copied === i ? "COPIED" : "COPY"}
                       </button>
@@ -355,7 +355,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
                       aria-label={`Unlock ${sc.t} with the Deal Pass`}
                       style={{
                         position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                        border: "none", background: "rgba(22,35,59,0.35)", color: "#fff",
+                        border: "none", background: "rgba(22,35,59,0.35)", color: C.onInk,
                         fontFamily: mono, fontSize: 10.5, letterSpacing: "0.08em", fontWeight: 700, cursor: "pointer",
                       }}
                     >
@@ -367,12 +367,12 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
             })}
 
             {!hasPass && (
-              <button onClick={() => onGate("scripts")} style={{ width: "100%", minHeight: 48, marginTop: 16, border: "none", background: "#fff", color: C.ink, fontFamily: heading, fontWeight: 600, fontSize: 16, letterSpacing: "0.03em", cursor: "pointer" }}>
+              <button onClick={() => onGate("scripts")} style={{ width: "100%", minHeight: 48, marginTop: 16, border: "none", background: C.onInk, color: C.ink, fontFamily: heading, fontWeight: 600, fontSize: 16, letterSpacing: "0.03em", cursor: "pointer" }}>
                 UNLOCK THE REST · DEAL PASS
               </button>
             )}
 
-            <button onClick={() => onGate("practice")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, border: "1px dashed rgba(255,255,255,0.35)", background: "none", color: "#fff", padding: "10px 12px", cursor: "pointer" }}>
+            <button onClick={() => onGate("practice")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, border: `1px dashed ${C.dash}`, background: "none", color: C.onInk, padding: "10px 12px", cursor: "pointer" }}>
               <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, textAlign: "left" }}>Practice this conversation</span>
               <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: "rgba(255,255,255,0.14)", padding: "3px 7px" }}>
                 {hasPass ? "COMING SOON" : "DEAL PASS"}
