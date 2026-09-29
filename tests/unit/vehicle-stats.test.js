@@ -96,3 +96,52 @@ describe("engine choice", () => {
     expect(baseEngine([{ text: "Auto (S8), 6 cyl, 3.5 L", value: "40606" }, { text: "Auto (S8), 4 cyl, 2.5 L", value: "40609" }]).value).toBe("40609");
   });
 });
+
+describe("known problems", () => {
+  it("names parts plainly", async () => {
+    const { partName } = await import("../../server/vehicleStats.mjs");
+    expect(partName("POWER TRAIN")).toBe("Transmission and drivetrain");
+    expect(partName("FUEL SYSTEM, GASOLINE:DELIVERY:FUEL PUMP")).toBe("Fuel System");
+    expect(partName("AIR BAGS:FRONTAL")).toBe("Airbags");
+  });
+
+  it("counts where complaints cluster, skipping 'unknown'", async () => {
+    const { summarizeComplaints } = await import("../../server/vehicleStats.mjs");
+    const s = summarizeComplaints([
+      { components: "ENGINE,POWER TRAIN", crash: true, fire: false, numberOfInjuries: 1, dateComplaintFiled: "01/02/2024", summary: "Old one" },
+      { components: "ENGINE", crash: false, fire: true, numberOfInjuries: 0, dateComplaintFiled: "03/04/2025", summary: "Newer engine report" },
+      { components: "UNKNOWN OR OTHER", crash: false, fire: false, dateComplaintFiled: "05/06/2025", summary: "x" },
+    ]);
+    expect(s).toMatchObject({ total: 3, crashes: 1, fires: 1, injuries: 1, deaths: 0 });
+    expect(s.top.map((t) => [t.part, t.count])).toEqual([["Engine", 2], ["Transmission and drivetrain", 1]]);
+    expect(s.top[0].example).toBe("Newer engine report");
+  });
+
+  it("lists recalls newest first with the fix and park warnings", async () => {
+    const { summarizeRecalls } = await import("../../server/vehicleStats.mjs");
+    const r = summarizeRecalls([
+      { NHTSACampaignNumber: "19V1", ReportReceivedDate: "02/01/2019", Component: "AIR BAGS", Consequence: "Bag may not deploy.", Remedy: "Replace inflator.", parkOutSide: true },
+      { NHTSACampaignNumber: "20V2", ReportReceivedDate: "04/11/2020", Component: "FUEL SYSTEM, GASOLINE:DELIVERY:FUEL PUMP", Consequence: "Engine can stall.", Remedy: "Replace pump." },
+    ]);
+    expect(r.map((x) => x.id)).toEqual(["20V2", "19V1"]);
+    expect(r[1]).toMatchObject({ part: "Airbags", parkOutside: true, fix: "Replace inflator." });
+  });
+
+  it("falls back to the plain model name and builds the NHTSA link", async () => {
+    const { vehicleProblems } = await import("../../server/vehicleStats.mjs");
+    const seen = [];
+    const fetchImpl = async (url) => {
+      seen.push(url);
+      const hit = /model=Camry&/.test(url);
+      const body = url.includes("complaints") ? { results: hit ? [{ components: "ENGINE", dateComplaintFiled: "01/01/2025", summary: "s" }] : [] }
+        : { results: hit ? [{ NHTSACampaignNumber: "20V682000", ReportReceivedDate: "04/11/2020", Component: "FUEL SYSTEM" }] : [] };
+      return { ok: true, json: async () => body };
+    };
+    const p = await vehicleProblems({ year: 2019, make: "Toyota", model: "Camry LE/SE" }, { fetchImpl });
+    expect(p.ok).toBe(true);
+    expect(p.complaints.total).toBe(1);
+    expect(p.recalls).toHaveLength(1);
+    expect(p.link).toBe("https://www.nhtsa.gov/vehicle/2019/TOYOTA/CAMRY");
+    expect(seen.some((u) => u.includes("model=Camry+LE%2FSE"))).toBe(true);
+  });
+});

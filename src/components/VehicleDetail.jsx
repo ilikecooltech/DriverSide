@@ -4,6 +4,7 @@ import { carShareText, shareOut } from "../lib/share.js";
 import { valueLabel, segmentMedian } from "../data/shopping.js";
 import { TX_TAX } from "../data/decode.js";
 import { Kicker, PrimaryBtn, VehicleImage } from "./ui.jsx";
+import { ProblemsPanel } from "./Problems.jsx";
 
 /* The vehicle page. Before this, a Shop card was a dead end: one photo,
    no VIN, no way to act on the car. This is where a buyer decides whether
@@ -203,6 +204,8 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
             </dl>
           </section>
         )}
+
+        <ProblemsPanel car={vehicle} />
 
         <section aria-label="Out the door">
           <Kicker style={{ marginBottom: 8 }}>OUT THE DOOR, AT LEAST</Kicker>

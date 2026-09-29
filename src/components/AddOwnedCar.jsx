@@ -109,7 +109,7 @@ export function AddOwnedCar({ gas, onAdd, onCancel }) {
       {preview && (
         <div style={{ marginTop: 12, borderTop: `1px dashed ${C.line}`, paddingTop: 10 }}>
           <div style={{ fontSize: 15.5, fontWeight: 700 }}>{preview.title}</div>
-          <CarStats car={preview} gas={gas} />
+          <CarStats car={{ ...preview, preview: true }} gas={gas} />
           {found.missing?.length > 0 && (
             <p style={{ margin: "8px 0 0", fontSize: 12, color: C.inkSoft }}>No {found.missing.join(" or ")} on file for this one.</p>
           )}

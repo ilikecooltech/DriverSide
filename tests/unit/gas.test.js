@@ -75,3 +75,27 @@ describe("/api/gas", () => {
     expect(r.code).toBe(400);
   });
 });
+
+describe("gas by GPS", () => {
+  it("finds the metro within 80 km, then the state and region", async () => {
+    const { areasForPoint, kmBetween } = await import("../../server/gas.mjs");
+    expect(Math.round(kmBetween([29.58, -95.76], [29.76, -95.37]))).toBeGreaterThan(35);
+    expect(areasForPoint(29.58, -95.76, "TX")).toEqual(["Y44HO", "STX", "R30", "NUS"]);   // Richmond, TX
+    expect(areasForPoint(32.78, -96.8, "TX")).toEqual(["STX", "R30", "NUS"]);             // Dallas: no EIA metro
+    expect(areasForPoint(39.77, -86.16, "IN")).toEqual(["R20", "NUS"]);                    // Indianapolis
+    expect(areasForPoint(10, 10, null)).toEqual(["NUS"]);
+  });
+
+  it("the client asks by GPS when it has coordinates, else by ZIP", async () => {
+    const { gasQuery } = await import("../../src/lib/gas.js");
+    expect(gasQuery("77469", { lat: 29.58, lon: -95.76 })).toEqual({ key: "gps:29.6,-95.8", qs: "lat=29.58&lon=-95.76" });
+    expect(gasQuery("77469", null)).toEqual({ key: "zip:77469", qs: "zip=77469" });
+    expect(gasQuery("77", null)).toBe(null);
+  });
+
+  it("the API refuses blank coordinates instead of looking up 0,0", async () => {
+    const r = { code: 200, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; }, setHeader() {} };
+    await handler({ query: { lat: "", lon: "" } }, r);
+    expect(r.code).toBe(400);
+  });
+});

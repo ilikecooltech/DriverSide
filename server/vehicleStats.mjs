@@ -244,3 +244,85 @@ export async function vehicleStats(q, { fetchImpl = fetch, marketKey = process.e
   out.missing = [!epa && "mpg", !safety && "safety", !out.seats && "seats"].filter(Boolean);
   return out;
 }
+
+/* ── Known problems: what owners report and what's been recalled ──
+   NHTSA complaints (filed by owners) and recalls (filed by the maker),
+   for the model year. Complaints are unverified reports, so we show
+   where they cluster, not a verdict. */
+
+const PART_NAMES = {
+  "POWER TRAIN": "Transmission and drivetrain", "ENGINE": "Engine", "FUEL/PROPULSION SYSTEM": "Fuel and propulsion",
+  "SERVICE BRAKES": "Brakes", "ELECTRICAL SYSTEM": "Electrical", "AIR BAGS": "Airbags", "VEHICLE SPEED CONTROL": "Speed control",
+  "STEERING": "Steering", "SUSPENSION": "Suspension", "STRUCTURE": "Body and structure", "SEAT BELTS": "Seat belts",
+  "EXTERIOR LIGHTING": "Lights", "VISIBILITY/WIPER": "Visibility and wipers", "WHEELS": "Wheels", "TIRES": "Tires",
+  "FORWARD COLLISION AVOIDANCE": "Collision avoidance", "LANE DEPARTURE": "Lane assist", "BACK OVER PREVENTION": "Backup camera",
+  "LATCHES/LOCKS/LINKAGES": "Latches and locks", "ENGINE AND ENGINE COOLING": "Engine cooling", "HYBRID PROPULSION SYSTEM": "Hybrid system",
+  "ELECTRONIC STABILITY CONTROL (ESC)": "Stability control", "PARKING BRAKE": "Parking brake", "SEATS": "Seats",
+};
+const IGNORE = new Set(["UNKNOWN OR OTHER", ""]);
+const titleCase = (s) => String(s).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+export function partName(raw) {
+  const top = String(raw || "").split(":")[0].trim().toUpperCase();
+  return PART_NAMES[top] || titleCase(top.replace(/,.*$/, ""));
+}
+const clip = (s, n) => { const t = String(s || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1).replace(/\s\S*$/, "") + "…" : t; };
+const byDate = (d) => { const [m, day, y] = String(d || "").split("/"); return y ? `${y}-${m}-${day}` : ""; };
+
+export function summarizeComplaints(results = []) {
+  const parts = new Map();
+  let crashes = 0, fires = 0, injuries = 0, deaths = 0;
+  for (const c of results) {
+    if (c.crash) crashes++;
+    if (c.fire) fires++;
+    injuries += Number(c.numberOfInjuries) || 0;
+    deaths += Number(c.numberOfDeaths) || 0;
+    const names = new Set(String(c.components || "").split(",").map((x) => x.trim().toUpperCase()).filter((x) => !IGNORE.has(x)).map(partName));
+    for (const n of names) {
+      const p = parts.get(n) || { part: n, count: 0, latest: null };
+      p.count++;
+      if (!p.latest || byDate(c.dateComplaintFiled) > byDate(p.latest.date)) p.latest = { date: c.dateComplaintFiled, text: clip(c.summary, 220) };
+      parts.set(n, p);
+    }
+  }
+  const top = [...parts.values()].sort((a, b) => b.count - a.count).slice(0, 5)
+    .map((p) => ({ part: p.part, count: p.count, example: p.latest?.text || null }));
+  return { total: results.length, crashes, fires, injuries, deaths, top };
+}
+
+export function summarizeRecalls(results = []) {
+  return results
+    .map((r) => ({
+      id: r.NHTSACampaignNumber, date: r.ReportReceivedDate, part: partName(r.Component),
+      what: clip(r.Consequence || r.Summary, 200), fix: clip(r.Remedy, 200),
+      parkIt: Boolean(r.parkIt), parkOutside: Boolean(r.parkOutSide), overTheAir: Boolean(r.overTheAirUpdate),
+    }))
+    .sort((a, b) => byDate(b.date).localeCompare(byDate(a.date)));
+}
+
+export async function vehicleProblems({ year, make, model }, { fetchImpl = fetch } = {}) {
+  year = Number(year);
+  if (!(year > 1983) || !make || !model) return { ok: false, note: "Need a year, make and model." };
+  const base = "https://api.nhtsa.gov";
+  const tryModels = async (path) => {
+    for (const m of modelCandidates(model)) {
+      const q = new URLSearchParams({ make: String(make), model: m, modelYear: String(year) });
+      const j = await getJson(`${base}/${path}?${q}`, fetchImpl);
+      const list = j?.results || j?.Results || [];
+      if (list.length) return list;
+    }
+    return [];
+  };
+  const [complaints, recalls] = await Promise.all([
+    settle(tryModels("complaints/complaintsByVehicle")),
+    settle(tryModels("recalls/recallsByVehicle")),
+  ]);
+  if (complaints === null && recalls === null) return { ok: false, note: "NHTSA didn't answer. Try again in a minute." };
+  const slug = (s) => encodeURIComponent(String(s).toUpperCase());
+  return {
+    ok: true, year, make, model,
+    complaints: summarizeComplaints(complaints || []),
+    recalls: summarizeRecalls(recalls || []),
+    link: `https://www.nhtsa.gov/vehicle/${year}/${slug(make)}/${slug(modelCandidates(model).pop())}`,
+    at: Date.now(),
+  };
+}

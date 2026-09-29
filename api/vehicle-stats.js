@@ -5,16 +5,22 @@
    ?menu=options&year=2019&make=Toyota&model=Camry   (engines/transmissions)
    ?year=2019&make=Toyota&model=Camry[&trim=LE][&epaId=40609]
    ?vin=4T1B11HK5KU000000
+   ?problems=1&year=2019&make=Toyota&model=Camry  (NHTSA complaints + recalls)
 
    All sources are public and free; MarketCheck (if its key is set) only
    fills in seating. Answers are the same for everyone, so the CDN keeps
    them for a day. */
 
-import { menu, vehicleStats } from "../server/vehicleStats.mjs";
+import { menu, vehicleStats, vehicleProblems } from "../server/vehicleStats.mjs";
 
 export default async function handler(req, res) {
   const q = req.query || {};
   try {
+    if (q.problems) {
+      const p = await vehicleProblems({ year: q.year, make: q.make, model: q.model });
+      if (p.ok) res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=604800");
+      return res.json(p);
+    }
     if (q.menu) {
       const items = await menu(String(q.menu), { year: q.year, make: q.make, model: q.model });
       res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=604800");
