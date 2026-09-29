@@ -20,7 +20,7 @@ export const JOURNEY_DOORS = [
     title: "I'm at a dealer",
     blurb: "Live help, scripts and your walk-away number.",
     cta: "START →",
-    dest: { tab: "dealer", dealView: "capture" },
+    dest: { tab: "dealer", dealView: "home" },
   },
   {
     key: "shop",

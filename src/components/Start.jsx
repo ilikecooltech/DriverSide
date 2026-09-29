@@ -62,7 +62,7 @@ function DoorIcon({ k }) {
   );
 }
 
-export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass = false, onOpenPass, signedIn = false, userName = null, watchingCount = 0, hasDeal = false }) {
+export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass = false, onOpenPass, signedIn = false, userName = null, watchingCount = 0, hasDeal = false, dealerSession = null }) {
   const zip = setup?.zip || "77471";
   const [tiles, setTiles] = useState(() => readCachedStats(zip) || []);
   const [signIn, setSignIn] = useState(false);
@@ -200,7 +200,12 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
       <div style={{ padding: "16px 16px 8px" }}>
         <h2 style={{ fontFamily: heading, fontWeight: 700, fontSize: 21, margin: "0 0 10px" }}>{showPlan ? "Jump to" : "Start wherever you are"}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
-          {JOURNEY_DOORS.map((d) => (
+          {JOURNEY_DOORS.map((door) => {
+            /* A live dealer session turns the dealer tile into the way back to it. */
+            const d = door.key === "dealer" && dealerSession
+              ? { ...door, title: "Back to your session", blurb: dealerSession.car?.title || "Your dealer session is live.", cta: "RESUME →", dest: { tab: "dealer", dealView: "live" } }
+              : door;
+            return (
             <button
               key={d.key}
               onClick={() => onEnter(d.dest)}
@@ -222,7 +227,8 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
               </span>
               <span style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, color: d.urgent ? C.onNavySuccess : C.accentText }}>{d.cta}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 

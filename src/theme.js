@@ -35,6 +35,24 @@ export const C = {
   highlight: "#FFE08A",
 };
 
+/* Dealer mode: the same brand at night. At a dealer the phone is out
+   under showroom lights, glanced at between sentences, so the screen goes
+   dark, the numbers get bigger, and color only marks what to act on.
+   Pairs pass AA: ink/bg 15.6, ink2/bg 8.4, link/bg 8.6, success/bg 9.9. */
+export const D = {
+  bg: "#0F1826",
+  card: "#1A2536",
+  raised: "#22304A",
+  ink: "#EEF1F5",
+  ink2: "#A9B4C4",
+  rule: "#2A3649",
+  link: "#8DB4DC",
+  success: "#6FCF9F",
+  alert: "#F08C7E",
+  warnBg: "#3A2E17",
+  warnInk: "#F2DDB0",
+};
+
 /* Box-shadow underline that reads as a highlighter stroke. */
 export const highlight = (depth = 0.4) => ({ boxShadow: `inset 0 -${depth}em 0 ${C.highlight}` });
 
