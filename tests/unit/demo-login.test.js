@@ -22,6 +22,9 @@ describe("demo sign-in", () => {
   it("is off unless both env vars are set", () => {
     expect(demoConfig({ DEMO_PHONE: "9715550100" })).toBeNull();
     expect(demoConfig({ DEMO_CODE: "123456" })).toBeNull();
+    expect(demoConfig({ DEMO_PHONE: "9715550100", DEMO_CODE: "12345678" })).toEqual({ phone: "9715550100", code: "12345678" });
+    expect(demoConfig({ DEMO_PHONE: "9715550100", DEMO_CODE: "12345" })).toBeNull();
+    expect(demoConfig({ DEMO_PHONE: "9715550100", DEMO_CODE: "123456789" })).toBeNull();
   });
 
   it("recognizes only the configured number", async () => {
