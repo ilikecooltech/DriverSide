@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { C, mono, heading, fmt, stripes } from "../theme.js";
 import { matchScore, profileFor, segmentMedian, valueLabel, toGarageItem } from "../data/shopping.js";
-import { Kicker, PrimaryBtn, GhostBtn, useDesktop } from "./ui.jsx";
+import { Kicker, PrimaryBtn, GhostBtn, useDesktop, Slider } from "./ui.jsx";
 import { CarStats } from "./CarStats.jsx";
 import { AddOwnedCar } from "./AddOwnedCar.jsx";
 
@@ -17,14 +17,13 @@ export function marketFit(price, median) {
 }
 
 const ADD_FIELDS = [
-  { k: "year", label: "Year", ph: "2021", max: 4 },
   { k: "make", label: "Make", ph: "Subaru" },
   { k: "model", label: "Model", ph: "Outback" },
   { k: "trim", label: "Trim (optional)", ph: "Premium" },
-  { k: "price", label: "Listed price", ph: "26500", mono: true },
-  { k: "miles", label: "Miles (optional)", ph: "34000", mono: true },
   { k: "dealer", label: "Dealer or seller (optional)", ph: "Katy Subaru" },
 ];
+const thisYear = new Date().getFullYear();
+const YEARS = Array.from({ length: thisYear + 2 - 2000 }, (_, i) => String(thisYear + 1 - i));
 
 function AddVehicle({ onAdd, onCancel }) {
   const [v, setV] = useState({});
@@ -33,7 +32,15 @@ function AddVehicle({ onAdd, onCancel }) {
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 12 }}>
       <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>ADD A CAR BY HAND</Kicker>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div>
+          <label htmlFor="add-year" style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>Year</label>
+          <select id="add-year" value={v.year || ""} onChange={(e) => setV({ ...v, year: e.target.value })}
+            style={{ width: "100%", boxSizing: "border-box", minHeight: 44, padding: "8px 10px", border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 14, fontWeight: 600, color: C.ink }}>
+            <option value="">Year</option>
+            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
         {ADD_FIELDS.map((f) => (
           <div key={f.k}>
             <label style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
@@ -45,6 +52,10 @@ function AddVehicle({ onAdd, onCancel }) {
             />
           </div>
         ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+        <Slider id="add-price" label="Listed price" pre="$" value={v.price ?? ""} onChange={(x) => setV((p) => ({ ...p, price: x }))} min={3000} max={100000} step={250} rest={25000} />
+        <Slider id="add-miles" label="Miles (optional)" suf="mi" value={v.miles ?? ""} onChange={(x) => setV((p) => ({ ...p, miles: x }))} min={0} max={200000} step={1000} rest={40000} />
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <GhostBtn onClick={onCancel} style={{ width: "auto", flex: 1 }}>Cancel</GhostBtn>
