@@ -96,7 +96,10 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
     };
   }, []);
 
-  if (signIn)
+  // Signed in while the form was open (or it was opened by mistake): go home.
+  useEffect(() => { if (signedIn && signIn) setSignIn(false); }, [signedIn, signIn]);
+
+  if (signIn && !signedIn)
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px", minHeight: 0, overflowY: "auto" }}>
         <button
@@ -245,6 +248,17 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
       )}
 
       {/* ── the account, in one quiet line ── */}
+      {signedIn ? (
+        <div style={{ padding: "0 16px 22px", fontSize: 12, color: C.inkSoft, textAlign: "center", lineHeight: 1.6 }}>
+          Signed in{userName ? ` as ${userName}` : ""}. Your garage and numbers follow you.{" "}
+          <button
+            onClick={() => onEnter({ tab: "profile" })}
+            style={{ background: "none", border: "none", font: "inherit", color: C.accentText, fontWeight: 700, cursor: "pointer", textDecoration: "underline", display: "inline-block", padding: "13px 6px", margin: "-13px -2px" }}
+          >
+            Profile
+          </button>
+        </div>
+      ) : (
       <div style={{ padding: "0 16px 22px", fontSize: 12, color: C.inkSoft, textAlign: "center", lineHeight: 1.6 }}>
         Works without an account. Add one later and everything you&apos;ve built comes with you.{" "}
         <button
@@ -257,6 +271,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
           Sign in
         </button>
       </div>
+      )}
     </div>
   );
 }

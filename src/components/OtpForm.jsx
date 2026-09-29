@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { C, mono } from "../theme.js";
-import { sendOtp, verifyOtp } from "../lib/supabase.js";
+import { sendOtp, verifyOtp, getSession } from "../lib/supabase.js";
 import { PrimaryBtn, GhostBtn } from "./ui.jsx";
 
 /* The account door, in one reusable piece: a field that takes a phone
@@ -38,6 +38,15 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   const [error, setError] = useState(null);
   const [note, setNote] = useState(null);
   const codeRef = useRef(null);
+  /* Already signed in on this device? Don't ask for a code again (a
+     second sign-in over a live session is what broke the demo login).
+     Say so, and offer the way home. */
+  const [existing, setExisting] = useState(null);
+  useEffect(() => {
+    let live = true;
+    getSession().then((s) => { if (live && s?.user) setExisting(s); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     if (step === "code") codeRef.current?.focus();
@@ -95,6 +104,19 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   const errorBox = error && (
     <div style={{ background: C.amberBg, color: C.amberDark, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, lineHeight: 1.45, marginTop: 8 }}>{error}</div>
   );
+
+  if (existing) {
+    const u = existing.user || {};
+    const who = u.name || (u.phone ? prettyDest("phone", u.phone) : u.email) || "your account";
+    return (
+      <div role="status" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ background: C.greenBg, color: C.green, padding: "12px 14px", fontSize: 14, fontWeight: 700, lineHeight: 1.45 }}>
+          You're already signed in as {who}.
+        </div>
+        <PrimaryBtn onClick={() => onDone(existing)} height={50}>GO TO MY HOME</PrimaryBtn>
+      </div>
+    );
+  }
 
   if (step === "identifier")
     return (
