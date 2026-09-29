@@ -131,13 +131,13 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
       <input
         ref={codeRef}
         value={code}
-        onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+        onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, dest?.demo ? 8 : 6))}
         onKeyDown={(e) => e.key === "Enter" && !busy && verify()}
         placeholder="123456"
         type="text"
         inputMode="numeric"
         autoComplete="one-time-code"
-        maxLength={6}
+        maxLength={dest?.demo ? 8 : 6}
         style={{ ...field, fontSize: 22, letterSpacing: "0.35em", textAlign: "center" }}
       />
       {errorBox}

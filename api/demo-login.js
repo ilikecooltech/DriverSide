@@ -35,7 +35,8 @@ function safeEqual(a, b) {
 export function demoConfig(env = process.env) {
   const phone = (env.DEMO_PHONE || "").trim();
   const code = digits(env.DEMO_CODE || "");
-  return phone && code.length === 6 ? { phone, code } : null;
+  // 6 to 8 digits: a real texted code is 6, but the owner may pick a longer one.
+  return phone && code.length >= 6 && code.length <= 8 ? { phone, code } : null;
 }
 
 export function demoUserFor(phone) {
