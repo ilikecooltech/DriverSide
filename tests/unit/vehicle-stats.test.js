@@ -122,9 +122,13 @@ describe("known problems", () => {
     const r = summarizeRecalls([
       { NHTSACampaignNumber: "19V1", ReportReceivedDate: "02/01/2019", Component: "AIR BAGS", Consequence: "Bag may not deploy.", Remedy: "Replace inflator.", parkOutSide: true },
       { NHTSACampaignNumber: "20V2", ReportReceivedDate: "04/11/2020", Component: "FUEL SYSTEM, GASOLINE:DELIVERY:FUEL PUMP", Consequence: "Engine can stall.", Remedy: "Replace pump." },
+      { NHTSACampaignNumber: "20V3", ReportReceivedDate: "13/01/2020", Component: "ENGINE" },
+      { NHTSACampaignNumber: "21V4", ReportReceivedDate: "17/11/2021", Component: "SERVICE BRAKES" },
     ]);
-    expect(r.map((x) => x.id)).toEqual(["20V2", "19V1"]);
-    expect(r[1]).toMatchObject({ part: "Airbags", parkOutside: true, fix: "Replace inflator." });
+    // Recall dates are day first: 04/11/2020 is 4 Nov 2020, after 13 Jan 2020.
+    expect(r.map((x) => x.id)).toEqual(["21V4", "20V2", "20V3", "19V1"]);
+    expect(r[1].date).toBe("Nov 4, 2020");
+    expect(r[3]).toMatchObject({ part: "Airbags", parkOutside: true, fix: "Replace inflator.", date: "Jan 2, 2019" });
   });
 
   it("falls back to the plain model name and builds the NHTSA link", async () => {
@@ -132,6 +136,7 @@ describe("known problems", () => {
     const seen = [];
     const fetchImpl = async (url) => {
       seen.push(url);
+      if (url.includes("LE%2FSE")) return { ok: false, status: 400, json: async () => ({}) };
       const hit = /model=Camry&/.test(url);
       const body = url.includes("complaints") ? { results: hit ? [{ components: "ENGINE", dateComplaintFiled: "01/01/2025", summary: "s" }] : [] }
         : { results: hit ? [{ NHTSACampaignNumber: "20V682000", ReportReceivedDate: "04/11/2020", Component: "FUEL SYSTEM" }] : [] };

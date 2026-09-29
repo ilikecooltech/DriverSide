@@ -266,7 +266,12 @@ export function partName(raw) {
   return PART_NAMES[top] || titleCase(top.replace(/,.*$/, ""));
 }
 const clip = (s, n) => { const t = String(s || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1).replace(/\s\S*$/, "") + "…" : t; };
+/* NHTSA writes complaint dates month first (09/18/2026) and recall
+   dates day first (17/11/2021). Both become YYYY-MM-DD here. */
 const byDate = (d) => { const [m, day, y] = String(d || "").split("/"); return y ? `${y}-${m}-${day}` : ""; };
+const recallDate = (d) => { const [day, m, y] = String(d || "").split("/"); return y ? `${y}-${m.padStart(2, "0")}-${day.padStart(2, "0")}` : ""; };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const niceDate = (iso) => { const [y, m, d] = String(iso || "").split("-").map(Number); return y && m ? `${MONTHS[m - 1]} ${d}, ${y}` : ""; };
 
 export function summarizeComplaints(results = []) {
   const parts = new Map();
@@ -292,11 +297,12 @@ export function summarizeComplaints(results = []) {
 export function summarizeRecalls(results = []) {
   return results
     .map((r) => ({
-      id: r.NHTSACampaignNumber, date: r.ReportReceivedDate, part: partName(r.Component),
+      id: r.NHTSACampaignNumber, iso: recallDate(r.ReportReceivedDate), part: partName(r.Component),
       what: clip(r.Consequence || r.Summary, 200), fix: clip(r.Remedy, 200),
       parkIt: Boolean(r.parkIt), parkOutside: Boolean(r.parkOutSide), overTheAir: Boolean(r.overTheAirUpdate),
     }))
-    .sort((a, b) => byDate(b.date).localeCompare(byDate(a.date)));
+    .sort((a, b) => b.iso.localeCompare(a.iso))
+    .map(({ iso, ...r }) => ({ ...r, date: niceDate(iso) }));
 }
 
 export async function vehicleProblems({ year, make, model }, { fetchImpl = fetch } = {}) {
@@ -304,12 +310,16 @@ export async function vehicleProblems({ year, make, model }, { fetchImpl = fetch
   if (!(year > 1983) || !make || !model) return { ok: false, note: "Need a year, make and model." };
   const base = "https://api.nhtsa.gov";
   const tryModels = async (path) => {
+    // A trim-style name ("Camry LE/SE") can make NHTSA answer 400; move on to the plainer name.
+    let answered = false;
     for (const m of modelCandidates(model)) {
       const q = new URLSearchParams({ make: String(make), model: m, modelYear: String(year) });
-      const j = await getJson(`${base}/${path}?${q}`, fetchImpl);
+      const j = await getJson(`${base}/${path}?${q}`, fetchImpl).catch(() => null);
+      if (j) answered = true;
       const list = j?.results || j?.Results || [];
       if (list.length) return list;
     }
+    if (!answered) throw new Error("NHTSA unavailable");
     return [];
   };
   const [complaints, recalls] = await Promise.all([
