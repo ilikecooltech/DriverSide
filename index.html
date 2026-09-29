@@ -36,6 +36,12 @@
       input.ds-range.ds-unset::-webkit-slider-thumb { border-color: #B9B2A2; }
       input.ds-range.ds-unset::-moz-range-thumb { border-color: #B9B2A2; }
       input.ds-range:focus-visible { outline: 2px solid #2B5A87; outline-offset: 2px; }
+      /* Dealer mode (dark): lighter fill and track so they read at night. */
+      input.ds-range.ds-dark::-webkit-slider-runnable-track { background: linear-gradient(to right, #8DB4DC var(--fill, 0%), #2A3649 var(--fill, 0%)); }
+      input.ds-range.ds-dark::-moz-range-track { background: #2A3649; }
+      input.ds-range.ds-dark::-moz-range-progress { background: #8DB4DC; }
+      input.ds-range.ds-dark::-webkit-slider-thumb { background: #EEF1F5; border-color: #0F1826; }
+      input.ds-range.ds-dark::-moz-range-thumb { background: #EEF1F5; border-color: #0F1826; }
       /* Phones: 16px text in every field so iOS doesn't zoom the page when
          one is tapped. */
       @media (max-width: 820px) {

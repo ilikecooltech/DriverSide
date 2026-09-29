@@ -40,7 +40,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
             {dollars(price)}
             <small style={{ fontSize: 11, fontWeight: 400, color: C.inkSoft }}>one time</small>
             {PRICING.foundingActive && (
-              <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: "0.06em", color: "#fff", background: C.amber, padding: "3px 6px" }}>
+              <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: "0.06em", color: C.onInk, background: C.amber, padding: "3px 6px" }}>
                 FOUNDING PRICE
               </span>
             )}
@@ -77,7 +77,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
           disabled={Boolean(busy)}
           style={{
             width: "calc(100% - 28px)", margin: "12px 14px 0", minHeight: 52, border: "none",
-            background: C.ink, color: "#fff", fontFamily: heading, fontWeight: 600, fontSize: 17,
+            background: C.ink, color: C.onInk, fontFamily: heading, fontWeight: 600, fontSize: 17,
             letterSpacing: "0.02em", cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1,
           }}
         >
@@ -244,7 +244,7 @@ export function PassActive({ pass, giftCode, onGift, onRefund, busy, label, canG
           <button
             onClick={onGift}
             disabled={Boolean(busy) || Boolean(giftCode)}
-            style={{ marginTop: 8, minHeight: 44, padding: "0 14px", border: "none", background: C.green, color: "#fff", fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
+            style={{ marginTop: 8, minHeight: 44, padding: "0 14px", border: "none", background: C.greenFill, color: "#fff", fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
           >
             {giftCode ? `${giftCode} · 1 USE, 30 DAYS` : busy === "gift" ? "MINTING…" : "SHARE A PASS →"}
           </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { C, mono, heading, sans } from "./theme.js";
+import { C, D, mono, heading, sans } from "./theme.js";
 import { MOCK_DEAL } from "./data/decode.js";
 import { toGarageItem } from "./data/shopping.js";
 import { IMPORTS, connectorName } from "./data/connections.js";
@@ -28,6 +28,8 @@ import { requiresAccount } from "./lib/account.js";
 import { useNavHistory } from "./lib/navHistory.js";
 import { useGasPrice } from "./lib/gas.js";
 import { useApproxLocation } from "./lib/location.js";
+import { DealerHome, DealerLive } from "./components/Dealer.jsx";
+import { newSession } from "./data/dealer.js";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -43,6 +45,7 @@ const DEFAULT_SETUP = {
 
 const CONTEXT = {
   start: "START", shop: "SHOP", garage: "GARAGE", dealer: "AT THE DEALER", tools: "TOOLS",
+  home: "DEALER MODE", live: "DEALER MODE · LIVE",
   capture: "AT THE DEALER", manual: "MANUAL ENTRY", decoder: "DEAL DECODER",
   paywall: "DEAL PASS", modes: "MODE", prep: "PREP MODE · TONIGHT",
   table: "TABLE MODE · ONE HAND", walked: "WATCHING · DAY 2",
@@ -89,7 +92,11 @@ export default function App() {
     track("vehicle_viewed", { vehicle: [v.year, v.make, v.model].join(" "), photos: v.photos?.length || (v.image ? 1 : 0), from: tab });
   };
 
-  const [dealView, setDealView] = useState("capture");
+  /* Dealer mode: a live session for the car they're standing next to.
+     Survives a refresh or a locked phone until they end it. */
+  const [dealerSession, setDealerSession] = useState(persisted.dealerSession || null);
+  const [startingSession, setStartingSession] = useState(false);
+  const [dealView, setDealView] = useState(persisted.dealerSession ? "live" : "home");
   const [deal, setDeal] = useState(null);
   const [median, setMedian] = useState(null);
   const [mode, setMode] = useState("prep");
@@ -161,8 +168,8 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, connections, pass, watching });
-  }, [archetype, setup, cars, owned, connections, pass, watching]);
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, connections, pass, watching, dealerSession });
+  }, [archetype, setup, cars, owned, connections, pass, watching, dealerSession]);
 
   // This week's gas price near their ZIP, for the calculators and the Garage.
   // GPS once they allow it, their ZIP until then.
@@ -199,7 +206,7 @@ export default function App() {
     clearState();
     setAuth(null); setShowProfile(false); setTab("shop");
     setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setConnections({}); setWatching([]);
-    setSetup(DEFAULT_SETUP); setDeal(null); setDealView("capture");
+    setSetup(DEFAULT_SETUP); setDeal(null); setDealView("home"); setDealerSession(null);
     setDecodeCount(0); setPass(null);
   };
 
@@ -228,6 +235,35 @@ export default function App() {
       track("garage_reranked", { from, to });
       return next;
     });
+
+  /* ---- dealer mode ---- */
+  const startSession = async (car) => {
+    setStartingSession(true);
+    let market = null;
+    try {
+      const q = new URLSearchParams({ zip: setup.zip || "77471", radius: "100", year: String(car.year || ""), make: car.make || "", model: car.model || "", trim: car.trim || "" });
+      market = await fetch(`/api/market?${q}`).then((r) => r.json());
+    } catch { /* no market: the session still runs on their numbers */ }
+    const s = newSession(car, market);
+    setDealerSession(s);
+    setStartingSession(false);
+    setVehicle(null); setShowProfile(false);
+    setTab("dealer"); setDealView("live");
+    track("dealer_session_started", { vehicle: s.car.title, has_fair: Boolean(s.fair) });
+  };
+  const endSession = (outcome) => {
+    track("dealer_session_ended", { outcome, rounds: dealerSession?.rounds?.length || 0 });
+    setDealerSession(null);
+    if (outcome === "bought") goDest({ tab: "tools", toolsStage: "after" });
+    else if (outcome === "walked") { setTab("garage"); setDealView("home"); }
+    else setDealView("home");
+  };
+  const typeFromSession = () => {
+    const c = dealerSession?.car;
+    const last = dealerSession?.rounds?.length ? dealerSession.rounds[dealerSession.rounds.length - 1].amount : c?.price;
+    setAtVehicle(c ? { year: c.year, make: c.make, model: c.model, trim: c.trim || "", zip: setup.zip, asking: last } : null);
+    setDealView("manual");
+  };
 
   /* ---- connections ---- */
   const connect = (id) => {
@@ -475,6 +511,7 @@ export default function App() {
             track("auth_completed", { kind: "guest", configured: authConfigured });
             openPassFrom("front-anchor", { backTab: "start" });
           }}
+          dealerSession={dealerSession}
           onEnter={(dest) => enterFromStart(dest)}
           onSignedIn={(session) => {
             if (session?.user) adoptSession(session.user);
@@ -540,12 +577,16 @@ export default function App() {
      between them. The phone's own back button works everywhere (see
      useNavHistory). */
   const backTarget = nav.back();
-  const showBack = Boolean(backTarget) && (inVehicle || showProfile || (tab === "tools" && Boolean(toolsView.calc)) || (tab === "dealer" && !["capture", "decoder"].includes(dealView)));
+  const showBack = Boolean(backTarget) && (inVehicle || showProfile || (tab === "tools" && Boolean(toolsView.calc)) || (tab === "dealer" && (!["capture", "decoder", "home", "live"].includes(dealView) || (Boolean(dealerSession) && ["capture", "decoder"].includes(dealView)))));
+  /* Dealer mode is the brand at night: the whole Dealer tab goes dark,
+     from picking the car through the decoder and the outcome screens. */
+  const dark = tab === "dealer" && !showProfile;
 
   const dealerSessionActive = isDealerSessionLive(deal, dealView);
 
   return (
     <Shell
+      dark={dark}
       desktop={desktop}
       onHome={goHome}
       backBar={showBack && (
@@ -565,7 +606,7 @@ export default function App() {
             </>
           )}
           {!(tab === "dealer" && dealView === "decoder") && (
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>
+            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>
               {CONTEXT[dv] || ""}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
             </span>
           )}
@@ -574,15 +615,15 @@ export default function App() {
             aria-label="Profile"
             style={{
               display: "flex", alignItems: "center", gap: 6, minHeight: 44, padding: "0 10px",
-              border: `1.5px solid ${showProfile ? C.accent : C.ink}`,
-              background: showProfile ? C.accentTint : C.card,
-              cursor: "pointer", color: C.ink,
+              border: `1.5px solid ${dark ? D.rule : showProfile ? C.accent : C.ink}`,
+              background: dark ? "transparent" : showProfile ? C.accentTint : C.card,
+              cursor: "pointer", color: dark ? D.ink : C.ink,
             }}
           >
             <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 13 }}>
               {auth === "guest" ? "G" : (userName || "D")[0].toUpperCase()}
             </span>
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.inkSoft }}>PROFILE</span>
+            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>PROFILE</span>
           </button>
         </div>
       }
@@ -592,13 +633,14 @@ export default function App() {
           desktop={desktop}
           /* Real state, not decoration: the dot means a decode is open and
              has not reached an outcome yet. */
-          dealerLive={dealerSessionActive}
+          dealerLive={dealerSessionActive || Boolean(dealerSession)}
+          dark={dark}
           onGo={(k) => {
             setVehicle(null);
             if (k === "tools") setToolsView((v) => ({ ...v, calc: null }));
             setShowProfile(false);
             setTab(k);
-            if (k === "dealer" && !deal) setDealView("capture");
+            if (k === "dealer") setDealView(dealerSession ? "live" : deal ? dealView : "home");
             track("nav_tab", { tab: k });
           }}
         />
@@ -629,6 +671,7 @@ export default function App() {
               userName={userName && !/^\d+$/.test(userName) ? userName : null}
               watchingCount={watching.length}
               hasDeal={Boolean(deal)}
+              dealerSession={dealerSession}
               onEnter={(dest) => {
                 goDest(dest);
                 track("start_door_opened", { dest: dest?.tab || "shop" });
@@ -701,11 +744,8 @@ export default function App() {
                     onShared={(kind, result) => track("shared", { kind, result })}
                     onAtDealer={(v) => {
                       setAtVehicle({ year: v.year, make: v.make, model: v.model, trim: v.trim || "", zip: setup.zip, asking: v.price });
-                      setVehicle(null);
-                      setShowProfile(false);
-                      setTab("dealer");
-                      setDealView(deal ? "decoder" : "capture");
                       track("at_dealer_from_vehicle", { vehicle: [v.year, v.make, v.model].join(" ") });
+                      startSession(v);
                     }}
                   />
                 </div>
@@ -725,6 +765,19 @@ export default function App() {
             />
           )}
 
+          {tab === "dealer" && dealView === "home" && (
+            <DealerHome cars={cars} starting={startingSession} onStart={startSession}
+              onPhoto={() => setDealView("capture")} onType={() => { setAtVehicle(null); setDealView("manual"); }} />
+          )}
+          {tab === "dealer" && dealView === "live" && dealerSession && (
+            <DealerLive session={dealerSession} zip={setup.zip || "77471"} apr={setup.aprSet ? setup.apr : null}
+              onUpdate={setDealerSession} onEnd={endSession}
+              onPhoto={() => setDealView("capture")} onType={typeFromSession} />
+          )}
+          {tab === "dealer" && dealView === "live" && !dealerSession && (
+            <DealerHome cars={cars} starting={startingSession} onStart={startSession}
+              onPhoto={() => setDealView("capture")} onType={() => { setAtVehicle(null); setDealView("manual"); }} />
+          )}
           {tab === "dealer" && dealView === "capture" && (
             <CaptureFlow
               onSeeDecode={() => startDecode(MOCK_DEAL)}
@@ -811,8 +864,8 @@ const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color:
    with an accessible name, so it is reachable by keyboard and announced
    as "DriverSide, home" rather than read as decoration. Before anyone has
    entered the app there is nowhere to go home to, so it stays plain text. */
-function Wordmark({ onHome }) {
-  const type = { fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em", color: C.ink };
+function Wordmark({ onHome, dark = false }) {
+  const type = { fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em", color: dark ? D.ink : C.ink };
   if (!onHome) return <span style={type}>DriverSide</span>;
   return (
     <button
@@ -848,18 +901,19 @@ function backLabel(s) {
   if (s.vehicleId) return "Car";
   if (s.toolsCalc) return "Calculator";
   const names = { start: "Start", shop: "Shop", garage: "Garage", tools: "Tools" };
-  if (s.tab === "dealer") return { capture: "At the dealer", decoder: "Your decode", manual: "Manual entry", modes: "Modes", prep: "Prep", table: "Table" }[s.dealView] || "Dealer";
+  if (s.tab === "dealer") return { home: "At the dealer", live: "Your session", capture: "At the dealer", decoder: "Your decode", manual: "Manual entry", modes: "Modes", prep: "Prep", table: "Table" }[s.dealView] || "Dealer";
   return names[s.tab] || "Back";
 }
 
-function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop, onHome }) {
+function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop, onHome, dark = false }) {
+  const bg = dark ? D.bg : C.paper, bar = dark ? D.card : C.card, rule = dark ? D.rule : C.line;
   return (
-    <div style={{ background: desktop ? "#EFEEE8" : C.paper, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: C.ink }}>
-      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: C.paper, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
+    <div className={dark ? "ds-dark" : undefined} style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
+      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: bg, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${rule}`, borderRight: `1px solid ${rule}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}
-        <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: C.card, borderBottom: `1px solid ${C.line}` }}>
-          <Wordmark onHome={onHome} />
+        <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
+          <Wordmark onHome={onHome} dark={dark} />
           {masthead || (
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
           )}

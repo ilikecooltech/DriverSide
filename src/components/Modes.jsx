@@ -47,7 +47,7 @@ export function ModeSwitch({ mode, setMode, onOpen, onOutcome }) {
       <button onClick={() => setMode(key)} style={{ display: "block", width: "100%", textAlign: "left", border: `1.5px solid ${active ? C.accent : C.line}`, background: active ? C.accentTint : C.card, padding: 16, cursor: "pointer", marginBottom: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 22, color: C.ink }}>{title}</span>
-          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: active ? C.green : C.dash, fontWeight: 700 }}>{active ? "● ACTIVE" : "OFF"}</span>
+          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: active ? C.green : C.inkSoft, fontWeight: 700 }}>{active ? "● ACTIVE" : "OFF"}</span>
         </div>
         <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5, marginTop: 4 }}>{desc}</div>
       </button>
@@ -123,7 +123,7 @@ export function PrepMode({ deal, median, onTable }) {
         </div>
         {HOME_CHK.map((t, i) => (
           <button key={t} onClick={() => setChk({ ...chk, [i]: !chk[i] })} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", minHeight: 52, border: "none", borderBottom: `1px dashed ${C.line}`, background: "none", cursor: "pointer", textAlign: "left", padding: "6px 0" }}>
-            <span style={{ width: 22, height: 22, border: `1.5px solid ${chk[i] ? C.green : C.dash}`, background: chk[i] ? C.green : C.card, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{chk[i] ? "✓" : ""}</span>
+            <span style={{ width: 22, height: 22, border: `1.5px solid ${chk[i] ? C.greenFill : C.dash}`, background: chk[i] ? C.greenFill : C.card, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{chk[i] ? "✓" : ""}</span>
             <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: chk[i] ? C.inkSoft : C.ink }}>{t}</span>
           </button>
         ))}
@@ -145,7 +145,7 @@ export function PrepMode({ deal, median, onTable }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, border: `1px dashed ${C.dash}`, padding: 12, color: C.inkSoft }}>
           <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700 }}>Practice tonight — role-play the finance manager</span>
-          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: "#EDEAE0", padding: "3px 7px" }}>COMING SOON</span>
+          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: C.neutralTint, padding: "3px 7px" }}>COMING SOON</span>
         </div>
       </div>
       <div style={{ borderTop: `1px solid ${C.line}`, background: C.paper, padding: "10px 16px" }}>
@@ -199,7 +199,7 @@ export function TableMode({ deal, median, onFullDecode }) {
         </div>
         {conc.map(([t, a], i) => (
           <button key={t} onClick={() => setWon({ ...won, [i]: !won[i] })} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", minHeight: 54, border: "none", borderBottom: `1px dashed ${C.line}`, background: won[i] ? C.greenBg : "transparent", cursor: "pointer", textAlign: "left", padding: "6px 4px" }}>
-            <span style={{ width: 24, height: 24, border: `1.5px solid ${won[i] ? C.green : C.dash}`, background: won[i] ? C.green : C.card, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{won[i] ? "✓" : ""}</span>
+            <span style={{ width: 24, height: 24, border: `1.5px solid ${won[i] ? C.greenFill : C.dash}`, background: won[i] ? C.greenFill : C.card, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, flexShrink: 0 }}>{won[i] ? "✓" : ""}</span>
             <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: won[i] ? C.inkSoft : C.ink }}>{t}</span>
             <span style={{ fontFamily: mono, fontSize: 15, fontWeight: 800, color: won[i] ? C.green : C.ink }}>+{fmt(a)}</span>
           </button>
@@ -224,10 +224,10 @@ export function TableMode({ deal, median, onFullDecode }) {
         <Kicker style={{ marginBottom: 8 }}>IF YOU FREEZE, READ THIS</Kicker>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           {["Clean the sheet", "Beat my rate", "Walk"].map((t, i) => (
-            <button key={t} onClick={() => setScriptIx(i)} style={{ flex: 1, minHeight: 44, cursor: "pointer", fontSize: 11, fontWeight: 700, border: `1px solid ${scriptIx === i ? C.ink : C.line}`, background: scriptIx === i ? C.ink : C.card, color: scriptIx === i ? "#fff" : C.ink, padding: 4 }}>{t}</button>
+            <button key={t} onClick={() => setScriptIx(i)} style={{ flex: 1, minHeight: 44, cursor: "pointer", fontSize: 11, fontWeight: 700, border: `1px solid ${scriptIx === i ? C.ink : C.line}`, background: scriptIx === i ? C.ink : C.card, color: scriptIx === i ? C.onInk : C.ink, padding: 4 }}>{t}</button>
           ))}
         </div>
-        <div style={{ background: C.ink, color: "#fff", padding: 16, fontSize: 17, lineHeight: 1.5, fontStyle: "italic", minHeight: 84 }}>
+        <div style={{ background: C.ink, color: C.onInk, padding: 16, fontSize: 17, lineHeight: 1.5, fontStyle: "italic", minHeight: 84 }}>
           {typeof WLINES[scriptIx] === "function" ? WLINES[scriptIx](n.target) : WLINES[scriptIx]}
         </div>
       </div>

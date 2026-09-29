@@ -1,5 +1,5 @@
 import React from "react";
-import { C, mono, sans } from "../theme.js";
+import { C, D, mono, sans } from "../theme.js";
 
 /* Primary navigation, moved to the bottom of the viewport.
 
@@ -56,7 +56,8 @@ export function isDealerSessionLive(deal, dealView) {
   return Boolean(deal) && !DEAL_ENDED.includes(dealView);
 }
 
-export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
+export function BottomNav({ tab, onGo, desktop, dealerLive = false, dark = false }) {
+  const K = dark ? { bg: D.card, rule: D.rule, on: D.ink, off: D.ink2, bar: D.link, dot: D.alert } : { bg: C.card, rule: C.line, on: C.ink, off: C.inkSoft, bar: C.accent, dot: C.green };
   return (
     <nav
       aria-label="Primary"
@@ -68,10 +69,10 @@ export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
         width: "100%",
         maxWidth: desktop ? 760 : 520,
         zIndex: 20,
-        background: C.card,
-        borderTop: `1px solid ${C.line}`,
-        borderLeft: `1px solid ${C.line}`,
-        borderRight: `1px solid ${C.line}`,
+        background: K.bg,
+        borderTop: `1px solid ${K.rule}`,
+        borderLeft: `1px solid ${K.rule}`,
+        borderRight: `1px solid ${K.rule}`,
         boxShadow: "0 -4px 18px rgba(22,35,59,0.10)",
         display: "flex",
         paddingBottom: "env(safe-area-inset-bottom)",
@@ -94,7 +95,7 @@ export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
               minHeight: NAV_HEIGHT,
               background: "none",
               border: "none",
-              borderTop: on ? `3px solid ${C.accent}` : "3px solid transparent",
+              borderTop: on ? `3px solid ${K.bar}` : "3px solid transparent",
               cursor: "pointer",
               padding: "7px 2px 8px",
               display: "flex",
@@ -105,7 +106,7 @@ export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
               fontFamily: sans,
               fontSize: 11,
               letterSpacing: "0.01em",
-              color: on ? C.ink : C.inkSoft,
+              color: on ? K.on : K.off,
               fontWeight: on ? 700 : 400,
             }}
           >
@@ -121,7 +122,7 @@ export function BottomNav({ tab, onGo, desktop, dealerLive = false }) {
                     width: 7,
                     height: 7,
                     borderRadius: "50%",
-                    background: C.green,
+                    background: K.dot,
                     display: "block",
                   }}
                 />

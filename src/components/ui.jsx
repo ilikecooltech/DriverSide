@@ -1,5 +1,6 @@
 import React from "react";
 import { C, mono, heading } from "../theme.js";
+import { C_HEX as H } from "../theme.js";
 
 /* Desktop breakpoint hook — the app is mobile-first; ≥900px widens the
    shell and switches the Garage to a two-column grid. */
@@ -61,26 +62,26 @@ function MissingPhotoArt({ line }) {
     >
       <svg viewBox="0 0 132 62" width="172" height="81" role="presentation" focusable="false">
         {/* the photo that isn't there */}
-        <rect x="1" y="1" width="130" height="60" fill="none" stroke={C.dash}
+        <rect x="1" y="1" width="130" height="60" fill="none" stroke={H.dash}
               strokeWidth="1.5" strokeDasharray="5 4" opacity="0.55" />
         {/* road */}
-        <line x1="18" y1="50" x2="114" y2="50" stroke={C.dash} strokeWidth="1.5" opacity="0.7" />
+        <line x1="18" y1="50" x2="114" y2="50" stroke={H.dash} strokeWidth="1.5" opacity="0.7" />
         {/* body + cabin */}
         <path d="M24 44 L24 34 Q24 30 29 29 L44 29 L54 20 Q56 18 60 18 L82 18 Q86 18 88 21 L95 29 L106 31 Q110 32 110 36 L110 44 Z"
-              fill={C.card} stroke={C.inkSoft} strokeWidth="2" strokeLinejoin="round" />
+              fill={H.card} stroke={H.inkSoft} strokeWidth="2" strokeLinejoin="round" />
         {/* windows */}
-        <path d="M57 27 L64 21 L74 21 L74 27 Z" fill={C.neutralTint} stroke={C.inkSoft} strokeWidth="1.5" strokeLinejoin="round" />
-        <path d="M78 27 L78 21 L83 21 L88 27 Z" fill={C.neutralTint} stroke={C.inkSoft} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M57 27 L64 21 L74 21 L74 27 Z" fill={H.neutralTint} stroke={H.inkSoft} strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M78 27 L78 21 L83 21 L88 27 Z" fill={H.neutralTint} stroke={H.inkSoft} strokeWidth="1.5" strokeLinejoin="round" />
         {/* the eye — this is the whole joke */}
-        <circle cx="65" cy="25" r="3.6" fill="#fff" stroke={C.ink} strokeWidth="1.2" />
-        <circle cx="66.2" cy="25.6" r="1.7" fill={C.ink} />
+        <circle cx="65" cy="25" r="3.6" fill="#fff" stroke={H.ink} strokeWidth="1.2" />
+        <circle cx="66.2" cy="25.6" r="1.7" fill={H.ink} />
         {/* small unimpressed mouth near the bumper */}
-        <path d="M98 39 Q102 36.5 106 39" fill="none" stroke={C.inkSoft} strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M98 39 Q102 36.5 106 39" fill="none" stroke={H.inkSoft} strokeWidth="1.6" strokeLinecap="round" />
         {/* wheels */}
-        <circle cx="41" cy="44" r="7" fill={C.card} stroke={C.inkSoft} strokeWidth="2" />
-        <circle cx="41" cy="44" r="2.2" fill={C.dash} />
-        <circle cx="92" cy="44" r="7" fill={C.card} stroke={C.inkSoft} strokeWidth="2" />
-        <circle cx="92" cy="44" r="2.2" fill={C.dash} />
+        <circle cx="41" cy="44" r="7" fill={H.card} stroke={H.inkSoft} strokeWidth="2" />
+        <circle cx="41" cy="44" r="2.2" fill={H.dash} />
+        <circle cx="92" cy="44" r="7" fill={H.card} stroke={H.inkSoft} strokeWidth="2" />
+        <circle cx="92" cy="44" r="2.2" fill={H.dash} />
       </svg>
       <div style={{ fontSize: 12.5, fontWeight: 700, color: C.inkSoft, lineHeight: 1.35, maxWidth: 240 }}>
         {line}
@@ -248,7 +249,8 @@ export function DecodeLine({ line, chip, open, onToggle }) {
    need to land exactly, like a filter). `value` may be "" (not set yet):
    the thumb then sits greyed at `rest` and the number shows a dash until
    they touch it, so nothing is invented. */
-export function Slider({ id, label, value, min, max, step = 1, onChange, format, hint, pre, suf, decimal = false, rest, nudge = false, typeable = true }) {
+export function Slider({ id, label, value, min, max, step = 1, onChange, format, hint, pre, suf, decimal = false, rest, nudge = false, typeable = true, dark = false }) {
+  const T = dark ? { ink: "#EEF1F5", soft: "#A9B4C4", line: "#2A3649", box: "#0F1826", btn: "#1A2536" } : { ink: C.ink, soft: C.inkSoft, line: C.line, box: C.card, btn: C.paper };
   const unset = value === "" || value === null || value === undefined;
   const numVal = unset ? (rest ?? min) : Number(value);
   const clamped = Math.min(max, Math.max(min, Number.isFinite(numVal) ? numVal : min));
@@ -256,26 +258,26 @@ export function Slider({ id, label, value, min, max, step = 1, onChange, format,
   const decimals = decimal ? (String(step).split(".")[1] || "").length : 0;
   const emit = (n) => onChange(decimal ? Number(n).toFixed(decimals) : String(Math.round(n)));
   const shown = unset ? "" : format ? format(Number(value)) : String(value);
-  const nbtn = { width: 44, height: 44, flexShrink: 0, border: `1px solid ${C.line}`, background: C.paper, fontSize: 18, fontWeight: 700, cursor: "pointer", color: C.ink };
+  const nbtn = { width: 44, height: 44, flexShrink: 0, border: `1px solid ${T.line}`, background: T.btn, fontSize: 18, fontWeight: 700, cursor: "pointer", color: T.ink };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <label htmlFor={id} style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, flex: 1, minWidth: 0 }}>{label}</label>
+        <label htmlFor={id} style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, flex: 1, minWidth: 0, color: T.ink }}>{label}</label>
         {typeable ? (
-          <span style={{ display: "flex", alignItems: "center", gap: 3, minHeight: 44, padding: "0 10px", border: `1.5px solid ${C.line}`, background: C.card, maxWidth: "52%" }}>
-            {pre && <span style={{ color: C.inkSoft, fontSize: 14 }}>{pre}</span>}
+          <span style={{ display: "flex", alignItems: "center", gap: 3, minHeight: 44, padding: "0 10px", border: `1.5px solid ${T.line}`, background: T.box, maxWidth: "52%" }}>
+            {pre && <span style={{ color: T.soft, fontSize: 14 }}>{pre}</span>}
             <input
               aria-label={`${label}, exact`}
               value={unset ? "" : value}
               onChange={(e) => onChange(e.target.value.replace(decimal ? /[^0-9.]/g : /\D/g, ""))}
               inputMode={decimal ? "decimal" : "numeric"}
               placeholder="—"
-              style={{ width: `${Math.max(3, String(unset ? "" : value).length + 1)}ch`, minWidth: "3ch", maxWidth: "9ch", minHeight: 40, border: "none", background: "transparent", fontFamily: mono, fontSize: 16, fontWeight: 800, color: C.ink, textAlign: "right" }}
+              style={{ width: `${Math.max(3, String(unset ? "" : value).length + 1)}ch`, minWidth: "3ch", maxWidth: "9ch", minHeight: 40, border: "none", background: "transparent", fontFamily: mono, fontSize: 16, fontWeight: 800, color: T.ink, textAlign: "right" }}
             />
-            {suf && <span style={{ color: C.inkSoft, fontSize: 12.5, whiteSpace: "nowrap" }}>{suf}</span>}
+            {suf && <span style={{ color: T.soft, fontSize: 12.5, whiteSpace: "nowrap" }}>{suf}</span>}
           </span>
         ) : (
-          <span style={{ fontFamily: mono, fontSize: 16, fontWeight: 800, whiteSpace: "nowrap" }}>{shown || "—"}</span>
+          <span style={{ fontFamily: mono, fontSize: 16, fontWeight: 800, whiteSpace: "nowrap", color: T.ink }}>{shown || "—"}</span>
         )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -283,7 +285,7 @@ export function Slider({ id, label, value, min, max, step = 1, onChange, format,
         <input
           id={id}
           type="range"
-          className={`ds-range${unset ? " ds-unset" : ""}`}
+          className={`ds-range${dark ? " ds-dark" : ""}${unset ? " ds-unset" : ""}`}
           min={min} max={max} step={step}
           value={clamped}
           onChange={(e) => emit(Number(e.target.value))}
@@ -292,7 +294,7 @@ export function Slider({ id, label, value, min, max, step = 1, onChange, format,
         />
         {nudge && <button type="button" onClick={() => emit(Math.min(max, clamped + step))} aria-label={`Raise ${label}`} style={nbtn}>+</button>}
       </div>
-      {hint && <span style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.4 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 12, color: T.soft, lineHeight: 1.4 }}>{hint}</span>}
     </div>
   );
 }
