@@ -4,6 +4,7 @@ import { matchScore, profileFor, segmentMedian, valueLabel, toGarageItem } from 
 import { Kicker, PrimaryBtn, GhostBtn, useDesktop, Slider } from "./ui.jsx";
 import { CarStats } from "./CarStats.jsx";
 import { AddOwnedCar } from "./AddOwnedCar.jsx";
+import { GasLine } from "./GasLine.jsx";
 
 /* Garage — everything the buyer is considering, from any source, in one
    ranked list. Rank is the buyer's own call (dropdown); match is ours.
@@ -79,7 +80,7 @@ const tag = (text, bg, color) => (
 
 /* A car the buyer already owns: no price or match, just what it costs
    to keep and how it compares. */
-function OwnedCard({ car, gas, onRemove }) {
+function OwnedCard({ car, gas, onRemove, onStats }) {
   return (
     <div style={{ border: `1.5px solid ${C.ink}`, background: C.card, padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
@@ -90,13 +91,13 @@ function OwnedCard({ car, gas, onRemove }) {
         </div>
         <button onClick={() => onRemove(car.id)} style={{ minHeight: 44, minWidth: 44, fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>Remove</button>
       </div>
-      <CarStats car={car} gas={gas} />
+      <CarStats car={car} gas={gas} onStats={onStats} />
     </div>
   );
 }
 
 export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop, onOpen, watchingIds = [], onShare,
-  owned = [], onAddOwned, onRemoveOwned, onCarStats, gas }) {
+  owned = [], onAddOwned, onRemoveOwned, onCarStats, gas, loc, zip }) {
   const [adding, setAdding] = useState(false);
   const [addingOwned, setAddingOwned] = useState(false);
   const desktop = useDesktop();
@@ -143,12 +144,13 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
+      {loc && <GasLine gas={gas} loc={loc} zip={zip} style={{ marginBottom: 14 }} />}
       {(owned.length > 0 || addingOwned) && (
         <section aria-label="Cars you own" style={{ marginBottom: 18 }}>
           <Kicker style={{ letterSpacing: "0.12em", marginBottom: 10 }}>{owned.length ? `CARS YOU OWN · ${owned.length}` : "CARS YOU OWN"}</Kicker>
           {ownedForm}
           <div style={{ display: "grid", gridTemplateColumns: desktop ? "1fr 1fr" : "1fr", gap: 12 }}>
-            {owned.map((c) => <OwnedCard key={c.id} car={c} gas={gas} onRemove={onRemoveOwned} />)}
+            {owned.map((c) => <OwnedCard key={c.id} car={c} gas={gas} onRemove={onRemoveOwned} onStats={onCarStats} />)}
           </div>
         </section>
       )}

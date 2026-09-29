@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { C, mono } from "../theme.js";
 import { statRows, pickStats } from "../data/owned.js";
+import { ProblemsPanel } from "./Problems.jsx";
 
 /* The stats card for any car: owned or shopping. A shopping car shows
    whatever its listing already knew and offers to look up the rest
@@ -49,6 +50,7 @@ export function CarStats({ car, gas, onStats, compact = false }) {
           {state === "loading" ? "Looking it up…" : state === "error" ? "Couldn't find it. Try again" : "See safety, repairs and size"}
         </button>
       )}
+      {looked && !car.preview && <ProblemsPanel car={car} onStats={onStats} />}
     </div>
   );
 }

@@ -27,6 +27,7 @@ import { SignInPrompt } from "./components/SignInPrompt.jsx";
 import { requiresAccount } from "./lib/account.js";
 import { useNavHistory } from "./lib/navHistory.js";
 import { useGasPrice } from "./lib/gas.js";
+import { useApproxLocation } from "./lib/location.js";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -164,7 +165,9 @@ export default function App() {
   }, [archetype, setup, cars, owned, connections, pass, watching]);
 
   // This week's gas price near their ZIP, for the calculators and the Garage.
-  const gas = useGasPrice(setup.zip || "77471");
+  // GPS once they allow it, their ZIP until then.
+  const loc = useApproxLocation();
+  const gas = useGasPrice(setup.zip || "77471", loc.coords);
 
   /* Tools writes single fields; the profile sheet writes the whole setup.
      Both merge, so neither wipes what the other saved. */
@@ -643,6 +646,8 @@ export default function App() {
               cars={cars}
               owned={owned}
               gas={gas}
+              loc={loc}
+              zip={setup.zip || "77471"}
               onCarStats={setCarStats}
               signedIn={auth === "account"}
               view={toolsView}
@@ -668,7 +673,7 @@ export default function App() {
                 <Garage
                   cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
                   onAdd={addCar} onRemove={removeCar} onRank={rankCar}
-                  owned={owned} onAddOwned={addOwned} onRemoveOwned={removeOwned} onCarStats={setCarStats} gas={gas}
+                  owned={owned} onAddOwned={addOwned} onRemoveOwned={removeOwned} onCarStats={setCarStats} gas={gas} loc={loc} zip={setup.zip || "77471"}
                   onShop={() => setTab("shop")}
                   onOpen={openVehicle}
                   watchingIds={watching}

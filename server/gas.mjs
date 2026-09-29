@@ -87,13 +87,49 @@ export function areaLabel(code, name) {
   return `${title(name)} average`;
 }
 
-/* rows: EIA response.data rows for one product. Uses the newest week only. */
-export function pickPrice(rows, zip) {
+/* GPS: the metro if the point is within 80 km of one of EIA's ten city
+   centers (a Houston suburb like Richmond is ~45 km out), then the state,
+   region and U.S. The state comes from the FCC's free census lookup. */
+const METRO_CENTER = {
+  Y44HO: [29.76, -95.37], YORD: [41.88, -87.63], YMIA: [25.76, -80.19], YDEN: [39.74, -104.99],
+  YCLE: [41.50, -81.69], YBOS: [42.36, -71.06], Y48SE: [47.61, -122.33], Y35NY: [40.71, -74.01],
+  Y05SF: [37.77, -122.42], Y05LA: [34.05, -118.24],
+};
+const METRO_KM = 80;
+
+export function kmBetween([a1, o1], [a2, o2]) {
+  const r = Math.PI / 180, dA = (a2 - a1) * r, dO = (o2 - o1) * r;
+  const h = Math.sin(dA / 2) ** 2 + Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin(dO / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+}
+
+export function areasForPoint(lat, lon, state) {
+  const out = Object.entries(METRO_CENTER)
+    .map(([code, c]) => [code, kmBetween([lat, lon], c)])
+    .filter(([, km]) => km <= METRO_KM)
+    .sort((a, b) => a[1] - b[1])
+    .map(([code]) => code);
+  if (state && STATE_AREA[state]) out.push(STATE_AREA[state]);
+  if (state) for (const [area, list] of Object.entries(REGION)) if (list.includes(state)) out.push(area);
+  out.push("NUS");
+  return out;
+}
+
+export async function stateForPoint(lat, lon, fetchImpl = fetch) {
+  const r = await fetchImpl(`https://geo.fcc.gov/api/census/area?lat=${lat}&lon=${lon}&format=json`, { signal: AbortSignal.timeout(6000) });
+  if (!r.ok) throw new Error(`FCC ${r.status}`);
+  const j = await r.json();
+  return j?.results?.[0]?.state_code || null;
+}
+
+/* rows: EIA response.data rows for one product. Uses the newest week only.
+   `where` is a ZIP, or a list of area codes from areasForPoint. */
+export function pickPrice(rows, where) {
   const valid = (rows || []).filter((r) => r && r.duoarea && Number(r.value) > 0);
   if (!valid.length) return null;
   const latest = valid.reduce((m, r) => (r.period > m ? r.period : m), "");
   const week = new Map(valid.filter((r) => r.period === latest).map((r) => [r.duoarea, r]));
-  for (const code of areasForZip(zip)) {
+  for (const code of Array.isArray(where) ? where : areasForZip(where)) {
     const r = week.get(code);
     if (r) return { price: Math.round(Number(r.value) * 100) / 100, area: code, label: areaLabel(code, r["area-name"]), week: latest };
   }

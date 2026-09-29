@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { C, mono, heading, fmt, highlight } from "../theme.js";
 import { Kicker, Slider } from "./ui.jsx";
 import {
   paymentPlan, affordability, rateGap, tradeIn, hybridPayback, outTheDoorCheck, STAGES, ADVICE,
 } from "../data/tools.js";
 import { compareChoices } from "../data/owned.js";
+import { GasLine } from "./GasLine.jsx";
 import { lookupStats } from "./CarStats.jsx";
 
 /* Tools — replaces the interim Finance tab.
@@ -184,14 +185,19 @@ export function applyPick(prev, slot, choice) {
 }
 const shortName = (t) => String(t || "").split(" ").slice(0, 5).join(" ");
 
-export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view, onView, onSaveSetup, onOpenCar, onCarStats }) {
+export function Tools({ setup, cars = [], owned = [], gas = null, loc = null, zip = "", signedIn, view, onView, onSaveSetup, onOpenCar, onCarStats }) {
   const [vals, setVals] = useState(() => seedValues(setup, cars, gas));
   const [picking, setPicking] = useState("");
   const choices = useMemo(() => compareChoices(owned, cars), [owned, cars]);
 
-  // Gas price usually arrives after the screen opens; fill it if still blank.
+  /* Gas price usually arrives after the screen opens, and changes again
+     when they turn on location. Fill it in unless they've typed their own. */
+  const autoGas = useRef(gas?.price ? gas.price.toFixed(2) : "");
   useEffect(() => {
-    if (gas?.price) setVals((prev) => (prev.gasPrice ? prev : { ...prev, gasPrice: gas.price.toFixed(2) }));
+    if (!gas?.price) return;
+    const next = gas.price.toFixed(2);
+    setVals((prev) => (!prev.gasPrice || prev.gasPrice === autoGas.current ? { ...prev, gasPrice: next } : prev));
+    autoGas.current = next;
   }, [gas?.price]);
 
   const pick = async (slot, id) => {
@@ -235,7 +241,7 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
     return FIELDS[k].label;
   };
   const hintFor = (k) => {
-    if (k === "gasPrice" && gas?.price && vals.gasPrice === gas.price.toFixed(2)) return `This week's ${gas.label} (EIA). Change it if you pay more.`;
+    if (k === "gasPrice" && gas?.price && vals.gasPrice === gas.price.toFixed(2)) return `This week's ${gas.label}${gas.by === "gps" ? " near you" : ""} (EIA). Change it if you pay more.`;
     if (k === "miles" && !vals.miles) return "12,000 is typical.";
     return null;
   };
@@ -256,6 +262,7 @@ export function Tools({ setup, cars = [], owned = [], gas = null, signedIn, view
           <div style={{ fontFamily: heading, fontWeight: 700, fontSize: 32, lineHeight: 1.05 }}>{r.big}</div>
           {r.sub && <div style={{ fontSize: 13, color: "#C9D3E0", marginTop: 4 }}>{r.sub}</div>}
         </div>
+        {calcKey === "hybrid" && loc && <GasLine gas={gas} loc={loc} zip={zip} />}
         {calcKey === "hybrid" && choices.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
             {[["A", "Car 1", "pickA"], ["B", "Car 2", "pickB"]].map(([slot, label, key]) => (
