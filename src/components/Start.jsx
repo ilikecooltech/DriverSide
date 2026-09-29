@@ -70,7 +70,9 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
   const afford = affordability({ budget: setup?.budget, down: setup?.down, apr: setup?.aprSet ? setup?.apr : null, term: setup?.term });
   const plan = planSteps({ setup, cars, watchingCount, hasDeal, affordMax: afford?.maxPrice || null });
   const doneCount = plan.filter((s) => s.done).length;
-  const showPlan = signedIn || doneCount > 0;
+  /* The checklist leads the page for everyone: it is the whole purchase
+     on one card, and each step opens the screen that finishes it. */
+  const showPlan = plan.length > 0;
 
   useEffect(() => {
     if (tiles.length) return;
@@ -114,20 +116,6 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
       </div>
     );
 
-  const card = {
-    border: `1px solid ${C.line}`,
-    background: C.card,
-    padding: 13,
-    width: "100%",
-    textAlign: "left",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 9,
-    fontFamily: "inherit",
-    color: C.ink,
-  };
 
   return (
     <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
@@ -136,9 +124,8 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
         <h1 style={{ fontFamily: heading, fontWeight: 700, fontSize: 34, lineHeight: 1.05, margin: 0, maxWidth: "16ch" }}>
           Where are you <span style={highlight(0.36)}>in the process?</span>
         </h1>
-        <p style={{ color: C.inkSoft, fontSize: 13.5, marginTop: 8, lineHeight: 1.55, maxWidth: "46ch" }}>
-          The dealer has software, training, and the home field. DriverSide reads the live market, decodes their
-          paperwork, and hands you the words — at every step from &quot;just looking&quot; to signing day.
+        <p style={{ color: C.inkSoft, fontSize: 14, marginTop: 8, marginBottom: 0, lineHeight: 1.5, maxWidth: "46ch" }}>
+          Pick where you are. You can jump anywhere later.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
           {TRUST.map((t) => (
@@ -151,23 +138,6 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
           ))}
         </div>
       </div>
-
-      {/* ── returning buyer: only what's actually on the device ── */}
-      {resume && (
-        <div style={{ margin: "14px 16px 0", border: `1px solid ${C.green}`, background: C.greenBg, padding: "12px 13px" }}>
-          <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.07em", color: C.green }}>
-            WELCOME BACK — PICK UP WHERE YOU LEFT OFF
-          </div>
-          <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 17, marginTop: 3 }}>{resume.title}</div>
-          <p style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 3, marginBottom: 0, lineHeight: 1.5 }}>{resume.line}</p>
-          <button
-            onClick={() => onEnter(resume.dest)}
-            style={{ marginTop: 9, background: C.green, color: "#fff", border: "none", fontFamily: heading, fontWeight: 600, fontSize: 13.5, padding: "9px 14px", minHeight: 40, cursor: "pointer" }}
-          >
-            {resume.cta}
-          </button>
-        </div>
-      )}
 
       {/* ── signed in: a greeting, and the plan built from what's on the device ── */}
       {signedIn && (
@@ -193,7 +163,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
               onClick={() => onEnter(s.dest)}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, minHeight: 50, padding: "6px 0", border: "none", borderTop: `1px solid ${C.line}`, background: "none", cursor: "pointer", textAlign: "left", color: C.ink, fontFamily: "inherit" }}
             >
-              <span aria-hidden="true" style={{ width: 22, height: 22, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: s.done ? C.greenFill : "transparent", color: "#fff", border: s.done ? "none" : `2px solid ${C.dash}` }}>{s.done ? "✓" : ""}</span>
+              <span aria-hidden="true" style={{ width: 22, height: 22, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, background: s.done ? C.greenFill : "transparent", color: "#fff", border: `2px solid ${s.done ? C.greenFill : C.dash}`, boxSizing: "border-box" }}>{s.done ? "✓" : ""}</span>
               <span style={{ flex: 1 }}>
                 <b style={{ display: "block", fontSize: 14 }}>{s.title}<span style={{ position: "absolute", left: -9999 }}>{s.done ? ", done" : ", to do"}</span></b>
                 <span style={{ display: "block", fontSize: 12, color: C.inkSoft }}>{s.line}</span>
@@ -204,42 +174,53 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
         </div>
       )}
 
-      {/* ── the doors ── */}
-      <div style={{ padding: "16px 16px 8px" }}>
-        <h2 style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, margin: 0 }}>Start wherever you are.</h2>
-        <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 2, marginBottom: 12 }}>
-          Every door leads to the same toolbox — nothing here is a funnel.
-        </div>
-
-        {JOURNEY_DOORS.map((d) => (
+      {/* ── returning buyer: only what's actually on the device ── */}
+      {resume && (
+        <div style={{ margin: "14px 16px 0", border: `1px solid ${C.green}`, background: C.greenBg, padding: "12px 13px" }}>
+          <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.07em", color: C.green }}>
+            WELCOME BACK — PICK UP WHERE YOU LEFT OFF
+          </div>
+          <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 17, marginTop: 3 }}>{resume.title}</div>
+          <p style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 3, marginBottom: 0, lineHeight: 1.5 }}>{resume.line}</p>
           <button
-            key={d.key}
-            onClick={() => onEnter(d.dest)}
-            style={d.urgent ? { ...card, background: C.ink, border: `1px solid ${C.ink}`, color: "#F3F6F9" } : card}
+            onClick={() => onEnter(resume.dest)}
+            style={{ marginTop: 9, background: C.green, color: "#fff", border: "none", fontFamily: heading, fontWeight: 600, fontSize: 13.5, padding: "9px 14px", minHeight: 44, cursor: "pointer" }}
           >
-            <span
-              aria-hidden="true"
-              style={{ fontSize: 20, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", width: 22 }}
-            >
-              {d.urgent ? (
-                <span className="ds-pulse" style={{ width: 9, height: 9, borderRadius: "50%", background: C.onNavySuccess, display: "block" }} />
-              ) : (
-                <span style={{ color: C.accent, display: "flex" }}><DoorIcon k={d.key} /></span>
-              )}
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <b style={{ fontFamily: heading, fontWeight: 600, fontSize: 16, display: "block" }}>{d.title}</b>
-              <span style={{ fontSize: 12.5, color: d.urgent ? "#B9C6D6" : C.inkSoft, display: "block", marginTop: 1, lineHeight: 1.45 }}>
-                {d.blurb}
-              </span>
-            </span>
-            <span
-              style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em", color: d.urgent ? C.onNavySuccess : C.accentText, whiteSpace: "nowrap", flexShrink: 0 }}
-            >
-              {d.cta}
-            </span>
+            {resume.cta}
           </button>
-        ))}
+        </div>
+      )}
+
+      {/* ── the doors, as tiles: two across on a phone, three on a wide
+          screen. The dealer tile is dark and first: someone at a desk
+          right now has the least time and the most to lose. ── */}
+      <div style={{ padding: "16px 16px 8px" }}>
+        <h2 style={{ fontFamily: heading, fontWeight: 700, fontSize: 21, margin: "0 0 10px" }}>{showPlan ? "Jump to" : "Start wherever you are"}</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+          {JOURNEY_DOORS.map((d) => (
+            <button
+              key={d.key}
+              onClick={() => onEnter(d.dest)}
+              style={{
+                minHeight: 132, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 8,
+                padding: 14, textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+                background: d.urgent ? C.ink : C.card, color: d.urgent ? "#F3F6F9" : C.ink,
+                border: `1px solid ${d.urgent ? C.ink : C.line}`,
+              }}
+            >
+              <span style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span aria-hidden="true" style={{ height: 22, display: "flex", alignItems: "center", color: C.accent }}>
+                  {d.urgent
+                    ? <span className="ds-pulse" style={{ width: 10, height: 10, borderRadius: "50%", background: C.onNavySuccess, display: "block" }} />
+                    : <DoorIcon k={d.key} />}
+                </span>
+                <b style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, lineHeight: 1.12 }}>{d.title}</b>
+                <span style={{ fontSize: 13, lineHeight: 1.4, color: d.urgent ? "#B9C6D6" : C.inkSoft }}>{d.blurb}</span>
+              </span>
+              <span style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, color: d.urgent ? C.onNavySuccess : C.accentText }}>{d.cta}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── the pass, anchored at the front ──

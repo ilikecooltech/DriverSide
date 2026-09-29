@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { C, mono, heading, fmt, stripes } from "../theme.js";
 import { matchScore, profileFor, segmentMedian, valueLabel, toGarageItem } from "../data/shopping.js";
-import { Kicker, PrimaryBtn, GhostBtn, useDesktop } from "./ui.jsx";
+import { Kicker, PrimaryBtn, GhostBtn, useDesktop, Slider } from "./ui.jsx";
+import { CarStats } from "./CarStats.jsx";
+import { AddOwnedCar } from "./AddOwnedCar.jsx";
 
 /* Garage — everything the buyer is considering, from any source, in one
    ranked list. Rank is the buyer's own call (dropdown); match is ours.
@@ -15,14 +17,13 @@ export function marketFit(price, median) {
 }
 
 const ADD_FIELDS = [
-  { k: "year", label: "Year", ph: "2021", max: 4 },
   { k: "make", label: "Make", ph: "Subaru" },
   { k: "model", label: "Model", ph: "Outback" },
   { k: "trim", label: "Trim (optional)", ph: "Premium" },
-  { k: "price", label: "Listed price", ph: "26500", mono: true },
-  { k: "miles", label: "Miles (optional)", ph: "34000", mono: true },
   { k: "dealer", label: "Dealer or seller (optional)", ph: "Katy Subaru" },
 ];
+const thisYear = new Date().getFullYear();
+const YEARS = Array.from({ length: thisYear + 2 - 2000 }, (_, i) => String(thisYear + 1 - i));
 
 function AddVehicle({ onAdd, onCancel }) {
   const [v, setV] = useState({});
@@ -31,7 +32,15 @@ function AddVehicle({ onAdd, onCancel }) {
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 12 }}>
       <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>ADD A CAR BY HAND</Kicker>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div>
+          <label htmlFor="add-year" style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>Year</label>
+          <select id="add-year" value={v.year || ""} onChange={(e) => setV({ ...v, year: e.target.value })}
+            style={{ width: "100%", boxSizing: "border-box", minHeight: 44, padding: "8px 10px", border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 14, fontWeight: 600, color: C.ink }}>
+            <option value="">Year</option>
+            {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
         {ADD_FIELDS.map((f) => (
           <div key={f.k}>
             <label style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
@@ -43,6 +52,10 @@ function AddVehicle({ onAdd, onCancel }) {
             />
           </div>
         ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+        <Slider id="add-price" label="Listed price" pre="$" value={v.price ?? ""} onChange={(x) => setV((p) => ({ ...p, price: x }))} min={3000} max={100000} step={250} rest={25000} />
+        <Slider id="add-miles" label="Miles (optional)" suf="mi" value={v.miles ?? ""} onChange={(x) => setV((p) => ({ ...p, miles: x }))} min={0} max={200000} step={1000} rest={40000} />
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <GhostBtn onClick={onCancel} style={{ width: "auto", flex: 1 }}>Cancel</GhostBtn>
@@ -60,8 +73,32 @@ function AddVehicle({ onAdd, onCancel }) {
   );
 }
 
-export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop, onOpen, watchingIds = [], onShare }) {
+const tag = (text, bg, color) => (
+  <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.08em", fontWeight: 700, color, background: bg, padding: "2px 6px", verticalAlign: "middle" }}>{text}</span>
+);
+
+/* A car the buyer already owns: no price or match, just what it costs
+   to keep and how it compares. */
+function OwnedCard({ car, gas, onRemove }) {
+  return (
+    <div style={{ border: `1.5px solid ${C.ink}`, background: C.card, padding: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <div>
+          <div style={{ marginBottom: 4 }}>{tag("YOURS", C.ink, "#fff")}</div>
+          <div style={{ fontSize: 15.5, fontWeight: 700 }}>{car.title}</div>
+          {car.miles > 0 && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{Math.round(car.miles / 1000)}k mi on it</div>}
+        </div>
+        <button onClick={() => onRemove(car.id)} style={{ minHeight: 44, minWidth: 44, fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>Remove</button>
+      </div>
+      <CarStats car={car} gas={gas} />
+    </div>
+  );
+}
+
+export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop, onOpen, watchingIds = [], onShare,
+  owned = [], onAddOwned, onRemoveOwned, onCarStats, gas }) {
   const [adding, setAdding] = useState(false);
+  const [addingOwned, setAddingOwned] = useState(false);
   const desktop = useDesktop();
   const profile = useMemo(() => profileFor(archetypeKey), [archetypeKey]);
   const median = useMemo(() => segmentMedian(cars), [cars]);
@@ -71,7 +108,11 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
     [cars, profile, median]
   );
 
-  if (cars.length === 0 && !adding)
+  const ownedForm = addingOwned && onAddOwned && (
+    <AddOwnedCar gas={gas} onAdd={(c) => { onAddOwned(c); setAddingOwned(false); }} onCancel={() => setAddingOwned(false)} />
+  );
+
+  if (cars.length === 0 && owned.length === 0 && !adding && !addingOwned)
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px", gap: 14, minHeight: 0, overflowY: "auto" }}>
         <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 28, lineHeight: 1.12, margin: "8px 0 0" }}>
@@ -96,17 +137,30 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
         </div>
         <PrimaryBtn onClick={onShop} height={52} style={{ fontSize: 18, marginTop: "auto" }}>SHOP FOR MY GOAL →</PrimaryBtn>
         <GhostBtn onClick={() => setAdding(true)}>Add a car by hand instead</GhostBtn>
+        {onAddOwned && <GhostBtn onClick={() => setAddingOwned(true)}>I already own a car. Add it</GhostBtn>}
       </div>
     );
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
+      {(owned.length > 0 || addingOwned) && (
+        <section aria-label="Cars you own" style={{ marginBottom: 18 }}>
+          <Kicker style={{ letterSpacing: "0.12em", marginBottom: 10 }}>{owned.length ? `CARS YOU OWN · ${owned.length}` : "CARS YOU OWN"}</Kicker>
+          {ownedForm}
+          <div style={{ display: "grid", gridTemplateColumns: desktop ? "1fr 1fr" : "1fr", gap: 12 }}>
+            {owned.map((c) => <OwnedCard key={c.id} car={c} gas={gas} onRemove={onRemoveOwned} />)}
+          </div>
+        </section>
+      )}
+
+      {cars.length > 0 && (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 8 }}>
         <Kicker style={{ letterSpacing: "0.12em" }}>
           {cars.length} SAVED · SCORED FOR {(archetypeName || "YOUR GOAL").toUpperCase()}
         </Kicker>
         <span style={{ fontFamily: mono, fontSize: 9, color: C.inkSoft }}>YOUR ORDER</span>
       </div>
+      )}
 
       {/* Buying is rarely a solo decision. The garage goes to a partner or
           a parent as plain text; they don't need the app to weigh in. */}
@@ -130,6 +184,7 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
             <div key={g.id} style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <div style={{ flex: 1 }}>
+                  {owned.length > 0 && <div style={{ marginBottom: 4 }}>{tag("SHOPPING", C.accentTint, C.accentText)}</div>}
                   <div style={{ fontSize: 15.5, fontWeight: 700 }}>
                     {g.title}
                     {watchingIds.includes(g.id) && (
@@ -161,6 +216,7 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                 </span>
               </div>
               {g.dealer && <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{g.dealer}</div>}
+              <CarStats car={g} gas={gas} onStats={onCarStats} compact={!g.stats} />
 
               {/* buyer's own ranking + remove */}
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, borderTop: `1px dashed ${C.line}`, paddingTop: 10 }}>
@@ -171,25 +227,25 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                   id={`rank-${g.id}`}
                   value={ix + 1}
                   onChange={(e) => onRank(ix, Number(e.target.value) - 1)}
-                  style={{ minHeight: 36, border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.ink, padding: "0 6px" }}
+                  style={{ minHeight: 44, border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.ink, padding: "0 6px" }}
                 >
                   {cars.map((_, i) => (
                     <option key={i} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
                 {onOpen && (
-                  <button onClick={() => onOpen(g)} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
+                  <button onClick={() => onOpen(g)} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
                     DETAILS →
                   </button>
                 )}
                 {g.decoded && (
-                  <button onClick={onOpenDecode} style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <button onClick={onOpenDecode} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     QUOTE DECODED →
                   </button>
                 )}
                 <button
                   onClick={() => onRemove(g.id)}
-                  style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}
+                  style={{ marginLeft: "auto", minHeight: 44, minWidth: 44, fontSize: 12, fontWeight: 700, color: C.red, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}
                 >
                   Remove
                 </button>
@@ -200,13 +256,18 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
       </div>
 
       {!adding && (
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
           <button onClick={onShop} style={{ flex: 1, border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
             + Shop for more
           </button>
           <button onClick={() => setAdding(true)} style={{ flex: 1, border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
             + Add by hand
           </button>
+          {onAddOwned && !addingOwned && (
+            <button onClick={() => setAddingOwned(true)} style={{ flexBasis: "100%", border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
+              + Add a car you own
+            </button>
+          )}
         </div>
       )}
     </div>

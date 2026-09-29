@@ -224,7 +224,7 @@ export function TableMode({ deal, median, onFullDecode }) {
         <Kicker style={{ marginBottom: 8 }}>IF YOU FREEZE, READ THIS</Kicker>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           {["Clean the sheet", "Beat my rate", "Walk"].map((t, i) => (
-            <button key={t} onClick={() => setScriptIx(i)} style={{ flex: 1, minHeight: 40, cursor: "pointer", fontSize: 11, fontWeight: 700, border: `1px solid ${scriptIx === i ? C.ink : C.line}`, background: scriptIx === i ? C.ink : C.card, color: scriptIx === i ? "#fff" : C.ink, padding: 4 }}>{t}</button>
+            <button key={t} onClick={() => setScriptIx(i)} style={{ flex: 1, minHeight: 44, cursor: "pointer", fontSize: 11, fontWeight: 700, border: `1px solid ${scriptIx === i ? C.ink : C.line}`, background: scriptIx === i ? C.ink : C.card, color: scriptIx === i ? "#fff" : C.ink, padding: 4 }}>{t}</button>
           ))}
         </div>
         <div style={{ background: C.ink, color: "#fff", padding: 16, fontSize: 17, lineHeight: 1.5, fontStyle: "italic", minHeight: 84 }}>
