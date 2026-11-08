@@ -27,6 +27,8 @@ Environment Variables, or `vercel env add`):
 | Name | Scope | Notes |
 |---|---|---|
 | MARKETCHECK_API_KEY | server only | Rotate the Aug 9 exposed key FIRST (CLAUDE.md rule). Never prefix with VITE_. |
+| ANTHROPIC_API_KEY | server only | Turns on Ask. Without it the Ask button stays hidden. Mark it Sensitive in Vercel. |
+| ASK_MODEL_FAST / ASK_MODEL_DEEP | server only, optional | Model overrides for Ask (defaults claude-haiku-5-5 / claude-sonnet-5-5). |
 | VITE_SUPABASE_URL | client | From Supabase, step 2 |
 | VITE_SUPABASE_ANON_KEY | client | Public by design; RLS is the boundary |
 | VITE_POSTHOG_KEY | client | From PostHog, step 3 |

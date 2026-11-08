@@ -1,38 +1,27 @@
-/* Marketplace connections. None of these sites expose a public API for a
-   user's saved cars, so connecting is a demonstration of the mechanic:
-   it imports that account's favorites into one garage. The UI labels it
-   as sample import — we don't pretend to an integration we don't have.
-   Real paths later: browser extension, share sheet, email parsing. */
+/* Marketplace "connections" are gone. None of these sites expose a
+   buyer's saved cars, so the old Connect buttons imported sample cars,
+   which a trust-first product can't do. The real path is Add a car from
+   any site (src/data/vin.js, components/AddFromLink.jsx).
 
-export const CONNECTORS = [
-  { id: "autotrader", ab: "AT", name: "AutoTrader", sub: "Saved cars & searches" },
-  { id: "cargurus", ab: "CG", name: "CarGurus", sub: "Saved cars & price history" },
-  { id: "carscom", ab: "CC", name: "Cars.com", sub: "Saved cars" },
-  { id: "carvana", ab: "CV", name: "Carvana", sub: "Watchlist" },
-  { id: "fbmarket", ab: "FB", name: "FB Marketplace", sub: "Via the share sheet" },
+   What's left here is cleanup: devices that pressed Connect before still
+   have those sample cars in their Garage. dropDemoImports removes exactly
+   those, matched on both id and source, and nothing a buyer added. */
+
+const DEMO_IMPORTS = [
+  ["AUTOTRADER", 2023, "Honda", "CR-V", 31987],
+  ["AUTOTRADER", 2022, "Toyota", "RAV4", 27995],
+  ["CARGURUS", 2021, "Mazda", "CX-5", 23450],
+  ["CARGURUS", 2022, "Kia", "Telluride", 33900],
+  ["CARS.COM", 2020, "Toyota", "Highlander", 29900],
+  ["CARVANA", 2021, "Honda", "Odyssey", 32400],
+  ["FB MARKETPLACE", 2019, "Toyota", "Camry", 18400],
 ];
+const DEMO_KEYS = new Set(DEMO_IMPORTS.map(([src, y, mk, md, p]) => `${src}|${y}-${mk}-${md}-${p}`));
 
-/* What each connection brings in on first sync. */
-export const IMPORTS = {
-  autotrader: [
-    { year: 2023, make: "Honda", model: "CR-V", trim: "EX-L", price: 31987, miles: 28400, bodyType: "SUV", dealer: "Sugar Land Honda", days: 47 },
-    { year: 2022, make: "Toyota", model: "RAV4", trim: "XLE", price: 27995, miles: 24000, bodyType: "SUV", dealer: "Katy Toyota", days: 18 },
-  ],
-  cargurus: [
-    { year: 2021, make: "Mazda", model: "CX-5", trim: "Touring", price: 23450, miles: 31000, bodyType: "SUV", dealer: "Sugar Land Mazda", days: 62, drop: "-$750 this week" },
-    { year: 2022, make: "Kia", model: "Telluride", trim: "LX", price: 33900, miles: 36000, bodyType: "SUV", dealer: "Houston Kia", days: 12 },
-  ],
-  carscom: [
-    { year: 2020, make: "Toyota", model: "Highlander", trim: "LE", price: 29900, miles: 58000, bodyType: "SUV", dealer: "Pasadena Toyota", days: 33 },
-  ],
-  carvana: [
-    { year: 2021, make: "Honda", model: "Odyssey", trim: "EX", price: 32400, miles: 41000, bodyType: "Minivan", dealer: "Carvana", days: 71 },
-  ],
-  fbmarket: [
-    { year: 2019, make: "Toyota", model: "Camry", trim: "LE", price: 18400, miles: 62000, bodyType: "Sedan", dealer: "Private seller", days: 44 },
-  ],
-};
+export function isDemoImport(car) {
+  return Boolean(car) && DEMO_KEYS.has(`${car.src}|${car.id}`);
+}
 
-export function connectorName(id) {
-  return (CONNECTORS.find((c) => c.id === id) || {}).name || id;
+export function dropDemoImports(cars = []) {
+  return (Array.isArray(cars) ? cars : []).filter((c) => !isDemoImport(c));
 }

@@ -195,12 +195,33 @@ describe("promo codes", () => {
     expect(reasons).toEqual(new Set(["invalid_or_expired"]));
   });
 
+  it("mints a 9-character body: issue day plus 7 random", () => {
+    expect(issueCode("FOUNDER")).toMatch(/^FOUNDER-[A-Z2-8]{9}-[A-Z2-8]{4}$/);
+  });
+
+  it("still accepts a code minted in the old, shorter format", () => {
+    /* Rebuild an old-format code with the real signer: same check digits,
+       6-char body. Signature over the body is what makes it valid. */
+    const fresh = issueCode("FOUNDER");
+    const [batch, body] = fresh.split("-");
+    const oldBody = body.slice(0, 6);
+    const crypto = require("node:crypto");
+    const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ2345678";
+    const h = crypto.createHmac("sha256", process.env.PROMO_SIGNING_SECRET || "driverside-dev-only-not-a-secret").update(`${batch}:${oldBody}`).digest();
+    const check = [...h].map((b) => ALPHA[b % 30]).join("").slice(0, 4);
+    expect(validateCode(`${batch}-${oldBody}-${check}`).ok).toBe(true);
+  });
+
   it("mints a whole batch without collisions", () => {
     // 2 random chars gave 900 per batch-day and collided inside 40 codes.
     // A batch has to be issuable in bulk without handing two people the
     // same code.
-    const codes = new Set(Array.from({ length: 500 }, () => issueCode("FOUNDER")));
-    expect(codes.size).toBe(500);
+    /* 20 batches of 500, so a regression to short codes fails reliably
+       instead of one run in four. */
+    for (let i = 0; i < 20; i++) {
+      const codes = new Set(Array.from({ length: 500 }, () => issueCode("FOUNDER")));
+      expect(codes.size).toBe(500);
+    }
   });
 
   it("does not validate forged codes at any meaningful rate", () => {

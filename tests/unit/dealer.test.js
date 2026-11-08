@@ -59,3 +59,35 @@ describe("dealer session", () => {
     expect(CHECKS).toHaveLength(5);
   });
 });
+
+import { dealStrip } from "../../src/data/dealer.js";
+
+describe("dealStrip", () => {
+  const base = { car: { title: "2023 Honda CR-V EX", price: 31500 }, fair: 30900, rounds: [{ amount: 31500, label: "Their ask" }] };
+
+  it("is absent with no session", () => {
+    expect(dealStrip(null)).toBeNull();
+    expect(dealStrip({})).toBeNull();
+  });
+
+  it("shows their ask and the gap to fair", () => {
+    const s = dealStrip(base);
+    expect(s.latestLabel).toBe("Their ask");
+    expect(s.latest).toBe(31500);
+    expect(s.gapText).toBe("$600 over fair");
+    expect(s.tone).toBe("over");
+  });
+
+  it("follows the latest number they've logged", () => {
+    const s = dealStrip({ ...base, rounds: [...base.rounds, { amount: 30950 }] });
+    expect(s.latestLabel).toBe("Their latest");
+    expect(s.gapText).toBe("At fair");
+    expect(s.tone).toBe("ok");
+  });
+
+  it("never invents a gap without a fair price", () => {
+    const s = dealStrip({ ...base, fair: null });
+    expect(s.gapText).toBeNull();
+    expect(s.tone).toBe("none");
+  });
+});

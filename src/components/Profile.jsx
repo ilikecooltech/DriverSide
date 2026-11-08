@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { C, mono, heading, fmt } from "../theme.js";
-import { CONNECTORS } from "../data/connections.js";
 import { Kicker, PrimaryBtn, Slider } from "./ui.jsx";
 
 /* Profile — organized around the shopping loop, not account plumbing:
@@ -84,7 +83,7 @@ function SetupEditor({ setup, onSave, onCancel }) {
 }
 
 export function Profile({
-  name, isGuest, archetypeName, setup, connections, onConnect, onDisconnect,
+  name, isGuest, archetypeName, setup, onPasteLink,
   onSaveSetup, onEditGoal, onSignOut, onBack, hideBack = false, onRequireAccount,
 }) {
   const [editing, setEditing] = useState(false);
@@ -124,31 +123,15 @@ export function Profile({
         </span>
       </div>
 
-      <Kicker style={{ marginBottom: 2 }}>WHERE YOU SHOP — CONNECT TO PULL IN YOUR SAVED CARS</Kicker>
-      {CONNECTORS.map((c) => {
-        const on = Boolean(connections[c.id]);
-        return (
-          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 52, borderBottom: `1px dashed ${C.line}`, padding: "4px 0" }}>
-            <span style={{ width: 30, height: 30, border: `1px solid ${C.line}`, background: C.card, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: mono, fontSize: 11, fontWeight: 800, color: C.inkSoft, flexShrink: 0 }}>{c.ab}</span>
-            <span style={{ flex: 1 }}>
-              <span style={{ display: "block", fontSize: 14, fontWeight: 700 }}>{c.name}</span>
-              <span style={{ display: "block", fontSize: 11.5, color: C.inkSoft }}>{c.sub}</span>
-            </span>
-            <button
-              onClick={() => (on ? onDisconnect(c.id) : onConnect(c.id))}
-              style={{ minHeight: 44, minWidth: 108, fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", border: `1px solid ${on ? C.green : C.accent}`, background: on ? C.greenBg : C.card, color: on ? C.green : C.accentText, cursor: "pointer" }}
-            >
-              {on ? "✓ CONNECTED" : "CONNECT"}
-            </button>
-          </div>
-        );
-      })}
-      <div style={{ fontSize: 11.5, color: C.inkSoft, lineHeight: 1.5, margin: "8px 0 4px" }}>
-        Connections read your saved cars into the Garage. We never post, message, or share back.
-      </div>
-      <div style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.06em", color: C.amber, background: C.amberBg, padding: "6px 8px", marginBottom: 16, lineHeight: 1.5 }}>
-        DEMO IMPORT — these marketplaces have no public saved-cars API. Connecting shows the mechanic with sample
-        favorites; the real path is the browser extension and share sheet.
+      <Kicker style={{ marginBottom: 6 }}>WHERE YOU SHOP</Kicker>
+      <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>Bring cars in from any site</div>
+        <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5 }}>
+          AutoTrader, CarGurus, Cars.com, Carvana, Facebook and dealer sites don't let apps read your saved cars, and we won't
+          log in as you. Paste a listing's link or VIN instead and we'll look it up and add it to your Garage. On Android, use
+          Share and pick DriverSide.
+        </div>
+        {onPasteLink && <PrimaryBtn onClick={onPasteLink} height={46}>PASTE A LINK</PrimaryBtn>}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>

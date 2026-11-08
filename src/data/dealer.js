@@ -98,3 +98,24 @@ export function offerRange(session) {
   const hi = Math.ceil((base * 1.1) / 100) * 100;
   return { min: lo, max: hi, step: 50 };
 }
+
+/* The "Your deal" strip: one line that follows the buyer across Shop,
+   Garage and Tools while a dealer session is open, so the numbers that
+   matter are a glance away wherever they wander. Read at the top, act at
+   the bottom: it is a scoreboard, and tapping it goes back to the session. */
+export function dealStrip(session) {
+  if (!session?.car) return null;
+  const rounds = session.rounds || [];
+  const latest = rounds.length ? rounds[rounds.length - 1].amount : session.car.price || null;
+  const fair = session.fair || null;
+  const gap = latest && fair ? latest - fair : null;
+  return {
+    title: session.car.title,
+    latest,
+    latestLabel: rounds.length > 1 ? "Their latest" : "Their ask",
+    fair,
+    gap,
+    gapText: gap === null ? null : gap > 100 ? `${money(gap)} over fair` : gap < -100 ? `${money(-gap)} under fair` : "At fair",
+    tone: gap === null ? "none" : gap > 100 ? "over" : "ok",
+  };
+}
