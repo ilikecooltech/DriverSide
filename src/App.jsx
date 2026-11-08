@@ -30,6 +30,7 @@ import { useGasPrice } from "./lib/gas.js";
 import { useApproxLocation } from "./lib/location.js";
 import { DealerHome, DealerLive } from "./components/Dealer.jsx";
 import { newSession } from "./data/dealer.js";
+import { DealStrip } from "./components/DealStrip.jsx";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -585,18 +586,28 @@ export default function App() {
 
   const dealerSessionActive = isDealerSessionLive(deal, dealView);
 
+  /* The screen's name in the top bar. Screens that sit on top of a tab
+     name themselves, so Back plus title always says where you are and
+     where you'll land. */
+  const screenTitle = showProfile ? "PROFILE"
+    : inVehicle ? "CAR DETAILS"
+    : tab === "tools" && toolsView.calc ? "CALCULATOR"
+    : CONTEXT[dv] || "";
+
   return (
     <Shell
       dark={dark}
       desktop={desktop}
       onHome={goHome}
-      backBar={showBack && (
-        <button
-          onClick={nav.goBack}
-          style={{ display: "flex", alignItems: "center", gap: 4, minHeight: 44, padding: "0 12px", border: "none", borderBottom: `1px solid ${C.line}`, background: C.card, color: C.accentText, fontSize: 14, fontWeight: 700, cursor: "pointer", textAlign: "left" }}
-        >
-          <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>‹</span> {backLabel(backTarget)}
-        </button>
+      /* Back lives in the top bar, where the wordmark sits on tab roots,
+         and names where it goes. The Start tab is the way home from there. */
+      back={showBack ? { label: backLabel(backTarget), onClick: nav.goBack } : null}
+      /* Your deal follows the buyer while a dealer session is open. */
+      strip={dealerSession && !showProfile && ["shop", "garage", "tools"].includes(tab) && (
+        <DealStrip
+          session={dealerSession}
+          onOpen={() => { setVehicle(null); setTab("dealer"); setDealView("live"); track("deal_strip_opened", { from: tab }); }}
+        />
       )}
       masthead={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -608,7 +619,7 @@ export default function App() {
           )}
           {!(tab === "dealer" && dealView === "decoder") && (
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>
-              {CONTEXT[dv] || ""}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
+              {screenTitle}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
             </span>
           )}
           <button
@@ -906,7 +917,27 @@ function backLabel(s) {
   return names[s.tab] || "Back";
 }
 
-function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop, onHome, dark = false }) {
+function BackButton({ label, onClick, dark = false }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`Back to ${label}`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0,
+        /* Same trick as the wordmark: padding buys the 44px hit area, the
+           negative margin keeps the bar's height. */
+        padding: "12px 8px 12px 0", margin: "-12px 0",
+        border: "none", background: "none", cursor: "pointer",
+        color: dark ? D.link : C.accentText, fontSize: 15, fontWeight: 700, fontFamily: sans,
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      }}
+    >
+      <span aria-hidden="true" style={{ fontSize: 24, lineHeight: 1, marginTop: -2 }}>‹</span> {label}
+    </button>
+  );
+}
+
+function Shell({ masthead, tabs, bottomNav, back, strip, context, children, desktop, onHome, dark = false }) {
   const bg = dark ? D.bg : C.paper, bar = dark ? D.card : C.card, rule = dark ? D.rule : C.line;
   return (
     <div className={dark ? "ds-dark" : undefined} style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
@@ -914,12 +945,12 @@ function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop,
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}
         <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
-          <Wordmark onHome={onHome} dark={dark} />
+          {back ? <BackButton label={back.label} onClick={back.onClick} dark={dark} /> : <Wordmark onHome={onHome} dark={dark} />}
           {masthead || (
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
           )}
         </div>
-        {backBar}
+        {strip}
         {tabs}
         {children}
         {/* The nav is fixed, so the column reserves its height rather than
