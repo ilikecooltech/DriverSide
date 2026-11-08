@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { C, D, mono, heading, sans } from "./theme.js";
 import { MOCK_DEAL } from "./data/decode.js";
 import { toGarageItem } from "./data/shopping.js";
-import { IMPORTS, connectorName } from "./data/connections.js";
+import { dropDemoImports } from "./data/connections.js";
 import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
@@ -53,6 +53,22 @@ const CONTEXT = {
   receipt: "SIGNED · THE RECEIPT", freshstart: "FRESH START · YOUR PLAN",
 };
 
+/* The share target (public/manifest.webmanifest) opens the app as
+   GET /?title=&text=&url= . Read it once, then take it off the address
+   bar so a refresh doesn't add the car again. */
+function readShared() {
+  if (typeof window === "undefined") return null;
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (!["title", "text", "url"].some((k) => q.has(k))) return null;
+    const text = [q.get("title"), q.get("text"), q.get("url")].filter(Boolean).join(" ").trim();
+    window.history.replaceState(null, "", window.location.pathname);
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const persisted = typeof window !== "undefined" ? loadState() : {};
 
@@ -63,11 +79,15 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(Boolean(persisted.archetypeKey));
   const [archetype, setArchetype] = useState(persisted.archetype || null);
   const [setup, setSetup] = useState({ ...DEFAULT_SETUP, ...(persisted.setup || {}) });
-  const [cars, setCars] = useState(persisted.cars || []);
+  /* dropDemoImports clears sample cars left by the retired Connect buttons. */
+  const [cars, setCars] = useState(dropDemoImports(persisted.cars));
   /* Cars the buyer already owns. Kept apart from the shopping list (no
      price, no match score) but compared against it everywhere. */
   const [owned, setOwned] = useState(persisted.owned || []);
-  const [connections, setConnections] = useState(persisted.connections || {});
+  /* A listing shared in from another app (Android share sheet, see
+     public/manifest.webmanifest): opens the Garage's paste box with it. */
+  const [sharedLink, setSharedLink] = useState(() => readShared());
+  const [linkNonce, setLinkNonce] = useState(0);
 
   const [tab, setTab] = useState("shop");
   /* Which calculator (or advice stage) Tools is showing. Lives here so
@@ -155,6 +175,15 @@ export default function App() {
     identify(user.id, { email: user.email || null, phone: user.phone || null, demo: Boolean(user.demo) });
   };
 
+  /* Arriving from the share sheet is entering the app: land in the Garage
+     with the link, as a guest if they've never been here. */
+  useEffect(() => {
+    if (!sharedLink) return;
+    setTab("garage");
+    setAuth((a) => a || "guest");
+    track("link_shared_in", {});
+  }, []);
+
   useEffect(() => {
     initAnalytics();
     getSession().then((s) => {
@@ -169,8 +198,8 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, connections, pass, watching, dealerSession });
-  }, [archetype, setup, cars, owned, connections, pass, watching, dealerSession]);
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, pass, watching, dealerSession });
+  }, [archetype, setup, cars, owned, pass, watching, dealerSession]);
 
   // This week's gas price near their ZIP, for the calculators and the Garage.
   // GPS once they allow it, their ZIP until then.
@@ -206,7 +235,7 @@ export default function App() {
     resetIdentity();
     clearState();
     setAuth(null); setShowProfile(false); setTab("shop");
-    setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setConnections({}); setWatching([]);
+    setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setWatching([]);
     setSetup(DEFAULT_SETUP); setDeal(null); setDealView("home"); setDealerSession(null);
     setDecodeCount(0); setPass(null);
   };
@@ -266,22 +295,8 @@ export default function App() {
     setDealView("manual");
   };
 
-  /* ---- connections ---- */
-  const connect = (id) => {
-    setConnections((c) => ({ ...c, [id]: true }));
-    const imported = (IMPORTS[id] || []).map((v) => toGarageItem(v, connectorName(id).toUpperCase()));
-    setCars((prev) => {
-      const have = new Set(prev.map((c) => c.id));
-      return [...prev, ...imported.filter((c) => !have.has(c.id))];
-    });
-    track("account_connected", { connector: id, imported: imported.length });
-  };
-  const disconnect = (id) => {
-    setConnections((c) => ({ ...c, [id]: false }));
-    const name = connectorName(id).toUpperCase();
-    setCars((prev) => prev.filter((c) => c.src !== name));
-    track("account_disconnected", { connector: id });
-  };
+  /* ---- adding from any site ---- */
+  const openPasteLink = () => { setShowProfile(false); setVehicle(null); setTab("garage"); setLinkNonce(Date.now()); track("paste_link_opened", { from: showProfile ? "profile" : tab }); };
 
   /* ---- the account ask, at the point of need ----
      Guests get the whole app. When they reach for the one or two things a
@@ -661,8 +676,8 @@ export default function App() {
       {showProfile ? (
         <Profile
           name={userName} isGuest={auth === "guest"}
-          archetypeName={archetype?.name} setup={setup} connections={connections}
-          onConnect={connect} onDisconnect={disconnect}
+          archetypeName={archetype?.name} setup={setup}
+          onPasteLink={openPasteLink}
           onSaveSetup={(s) => { saveSetup({ ...s, aprSet: true }); track("setup_updated"); }}
           onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
           onSignOut={handleSignOut} onBack={() => setShowProfile(false)} hideBack={showBack}
@@ -728,6 +743,7 @@ export default function App() {
                 <Garage
                   cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
                   onAdd={addCar} onRemove={removeCar} onRank={rankCar}
+                  sharedLink={sharedLink} onSharedLinkUsed={() => setSharedLink(null)} openLinkNonce={linkNonce} onLinkOpened={() => setLinkNonce(0)}
                   owned={owned} onAddOwned={addOwned} onRemoveOwned={removeOwned} onCarStats={setCarStats} gas={gas} loc={loc} zip={setup.zip || "77471"}
                   onShop={() => setTab("shop")}
                   onOpen={openVehicle}

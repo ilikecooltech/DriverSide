@@ -4,7 +4,6 @@ import {
   filterInventory, segmentMedian, toGarageItem, SAMPLE_INVENTORY, BODY_TYPES,
 } from "../../src/data/shopping.js";
 import { normalizeBody } from "../../api/shop.js";
-import { IMPORTS, CONNECTORS, connectorName } from "../../src/data/connections.js";
 import { ARCHETYPES } from "../../src/data/archetypes.js";
 
 /* Shop is the first thing a buyer sees, so the recommendation has to be
@@ -178,25 +177,6 @@ describe("toGarageItem", () => {
 
   it("survives a missing trim without a trailing space", () => {
     expect(toGarageItem({ year: 2021, make: "Subaru", model: "Outback", price: 26500 }).title).toBe("2021 Subaru Outback");
-  });
-});
-
-describe("marketplace connections", () => {
-  it("every connector has an import set", () => {
-    for (const c of CONNECTORS) expect(IMPORTS[c.id], c.id).toBeTruthy();
-  });
-
-  it("imports normalize into valid garage items", () => {
-    for (const [id, list] of Object.entries(IMPORTS))
-      for (const v of list) {
-        const g = toGarageItem(v, connectorName(id).toUpperCase());
-        expect(g.title, id).toMatch(/^\d{4} /);
-        expect(g.price, id).toBeGreaterThan(0);
-      }
-  });
-
-  it("names a connector for its badge", () => {
-    expect(connectorName("cargurus")).toBe("CarGurus");
   });
 });
 

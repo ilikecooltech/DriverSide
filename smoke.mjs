@@ -152,26 +152,27 @@ await page.waitForTimeout(300);
 const afterTitle = await page.locator("div").filter({ hasText: /^\d{4} \w/ }).first().textContent();
 if (firstTitle === afterTitle) throw new Error("rank dropdown did not reorder the garage");
 
-// ═══ PROFILE — top nav, connections, editable setup ═══
+// ═══ PROFILE — where you shop, editable setup ═══
 await btn("Profile").click();
-await expect("WHERE YOU SHOP", "profile connections");
-await expect("DEMO IMPORT", "import honestly labeled");
+await expect("WHERE YOU SHOP", "profile where-you-shop");
+await expect("Bring cars in from any site", "paste-a-link replaces fake connections");
 await expect("We make money when you subscribe", "business model stated");
+/* The old Connect buttons imported sample cars. They must not come back. */
+await expectNot("DEMO IMPORT", "no sample imports");
+if (await page.getByRole("button", { name: "CONNECT", exact: true }).count()) throw new Error("fake Connect buttons are back");
 
-// connect a marketplace -> imports its saved cars
-await page.getByRole("button", { name: "CONNECT", exact: true }).first().click();
-await expect("✓ CONNECTED", "connection toggles on");
-await btn("Profile").click(); // close profile
-await btn(/^Garage/).click();
-await expect("AUTOTRADER", "imported cars carry their source");
-await page.screenshot({ path: "/tmp/shot-garage-imported.png" });
-
-// disconnect removes exactly what it imported
-await btn("Profile").click();
-await page.getByRole("button", { name: "✓ CONNECTED" }).first().click();
-await btn("Profile").click();
-await btn(/^Garage/).click();
-await expectNot("AUTOTRADER", "disconnect removes imported cars");
+// ═══ ADD FROM ANY SITE — a link with no VIN asks for one ═══
+await btn(/PASTE A LINK/).click();
+await page.waitForSelector("#link-paste", { timeout: 3000 });
+await expect("ADD A CAR FROM ANY SITE", "profile opens the paste box in the Garage");
+await page.fill("#link-paste", "Check out this 2021 Honda CR-V EX on Autotrader https://www.autotrader.com/cars-for-sale/vehicle/7123");
+await btn(/FIND THIS CAR/).click();
+await expect("Looks like a 2021 Honda CR-V EX from Autotrader", "reads the shared text back");
+await page.fill("#link-vin", "1HGCM82643A004352"); // one character off
+await btn(/FIND THIS CAR/).click();
+await expect("doesn't check out", "a mistyped VIN is caught before any lookup");
+await btn(/^Cancel$/).click();
+await expectNot("ADD A CAR FROM ANY SITE", "cancel closes the paste box");
 
 // editable shopping setup
 await btn("Profile").click();
@@ -373,7 +374,7 @@ const realErrors = errors.filter(
 if (realFails.length) throw new Error("Failed requests: " + realFails.join(" | "));
 if (realErrors.length) throw new Error("Console errors: " + realErrors.join(" | "));
 
-console.log("SMOKE PASS — login, onboarding+reroute, shop w/ filters & save, garage rank/remove, connections import+disconnect, editable setup, decoder + 4 gates, manual entry, modes, outcomes, persistence, desktop");
+console.log("SMOKE PASS — login, onboarding+reroute, shop w/ filters & save, garage rank/remove, paste a link from any site, editable setup, decoder + 4 gates, manual entry, modes, outcomes, persistence, desktop");
 
 if (handled.length) {
   console.log("\n⚠  CONFIGURATION WARNINGS — the app degraded gracefully, but fix these:");
