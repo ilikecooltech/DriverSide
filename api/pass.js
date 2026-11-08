@@ -158,7 +158,7 @@ export default async function handler(req, res) {
           note: "TEST MODE — no payment provider configured, no charge made",
         });
       }
-      const origin = req.headers?.origin || `https://${req.headers?.host || "driverside.vercel.app"}`;
+      const origin = req.headers?.origin || `https://${req.headers?.host || "driverside.ai"}`;
       const session = await stripeCheckout({ priceCents, origin });
       return res.json({ mode: "live", ok: true, priceCents, sessionId: session.id, url: session.url });
     }

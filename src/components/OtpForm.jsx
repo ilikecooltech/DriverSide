@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { C, mono } from "../theme.js";
-import { sendOtp, verifyOtp, getSession } from "../lib/supabase.js";
+import { sendOtp, verifyOtp, getSession, signInCopy, friendlySendError } from "../lib/supabase.js";
 import { PrimaryBtn, GhostBtn } from "./ui.jsx";
 
-/* The account door, in one reusable piece: a field that takes a phone
-   number or an email, then a 6-digit code. Shared by the login screen
+/* The account door, in one reusable piece: a field that takes an email
+   (and a phone number too, once texts are switched on; see
+   smsLoginEnabled), then a 6-digit code. Shared by the login screen
    and by the at-point-of-need sign-in prompt a guest hits, so there is
    exactly one implementation of "prove it's you" in the app.
 
@@ -19,16 +20,6 @@ export function prettyDest(kind, value) {
   return value;
 }
 
-/* Supabase's own text here is developer-facing; translate the ones a
-   buyer can actually hit into something honest and actionable. */
-function sendMessage(r) {
-  const m = r.error?.message || "";
-  if (r.kind === "phone" && /provider|sms|not enabled|unsupported/i.test(m))
-    return "Text-message sign-in isn't switched on yet. Use your email instead.";
-  if (/rate|too many/i.test(m)) return "Too many tries. Wait a minute and try again.";
-  return m || "Couldn't send the code. Try again.";
-}
-
 export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false }) {
   const [step, setStep] = useState("identifier"); // identifier | code
   const [identifier, setIdentifier] = useState("");
@@ -38,6 +29,7 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   const [error, setError] = useState(null);
   const [note, setNote] = useState(null);
   const codeRef = useRef(null);
+  const copy = signInCopy();
   /* Already signed in on this device? Don't ask for a code again (a
      second sign-in over a live session is what broke the demo login).
      Say so, and offer the way home. */
@@ -64,7 +56,7 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
       setDest({ kind: r.kind, value: r.value, demo: Boolean(r.demo) });
       if (r.simulated) { onDone(); return; }
       if (r.demo) { setCode(""); setStep("code"); return; }
-      if (r.error) { setError(sendMessage(r)); return; }
+      if (r.error) { setError(friendlySendError(r)); return; }
       setCode("");
       setStep("code");
       if (resend) setNote("New code sent.");
@@ -123,17 +115,17 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {errorBox}
         <label htmlFor="ds-identifier" style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", color: C.inkSoft }}>
-          PHONE OR EMAIL
+          {copy.label}
         </label>
         <input
           id="ds-identifier"
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !busy && send()}
-          placeholder="(555) 123-4567 or you@example.com"
-          type="text"
+          placeholder={copy.placeholder}
+          type={copy.inputType}
           inputMode="email"
-          autoComplete="username"
+          autoComplete={copy.autoComplete}
           autoFocus={autoFocus}
           style={field}
         />
@@ -148,7 +140,7 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
       <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5 }}>
         {dest?.demo ? "Demo account. Enter your demo code for" : "We sent a 6-digit code to"}{" "}
         <span style={{ fontFamily: mono, color: C.ink }}>{dest ? prettyDest(dest.kind, dest.value) : ""}</span>.
-        {dest?.demo ? "" : dest?.kind === "email" ? " It expires in an hour." : " It expires in a few minutes."}
+        {dest?.demo ? "" : dest?.kind === "email" ? " It expires in an hour. Not there? Check spam or promotions." : " It expires in a few minutes."}
       </div>
       <input
         ref={codeRef}
@@ -174,7 +166,7 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
         onClick={() => { setStep("identifier"); setError(null); setNote(null); }}
         style={{ minHeight: 44, border: "none", background: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
       >
-        ← Use a different phone or email
+        ← {copy.changeLink}
       </button>
     </div>
   );
