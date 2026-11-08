@@ -27,7 +27,7 @@ export function Walked({ deal, median, onGarage }) {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: mono, fontSize: 16, fontWeight: 800 }}>{fmt(deal.asking)}</div>
-              {deal.daysOnLot && <div style={{ fontFamily: mono, fontSize: 10.5, color: C.amber, fontWeight: 700 }}>{deal.daysOnLot + 2} DAYS ON LOT</div>}
+              {deal.daysOnLot && <div style={{ fontFamily: mono, fontSize: 12, color: C.amber, fontWeight: 700 }}>{deal.daysOnLot + 2} DAYS ON LOT</div>}
             </div>
           </div>
           <div style={{ borderTop: `1px dashed ${C.line}`, marginTop: 10, paddingTop: 8 }}>
@@ -37,7 +37,7 @@ export function Walked({ deal, median, onGarage }) {
               ["DAY 60", "Most stores re-price around day 60. We'll ping you.", C.inkSoft],
             ].map(([d, t, color]) => (
               <div key={d} style={{ display: "flex", gap: 10, fontSize: 12.5, padding: "3px 0" }}>
-                <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, width: 56, flexShrink: 0 }}>{d}</span>
+                <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, width: 56, flexShrink: 0 }}>{d}</span>
                 <span style={{ color }}>{t}</span>
               </div>
             ))}
@@ -53,7 +53,7 @@ export function Walked({ deal, median, onGarage }) {
         ) : (
           <div style={{ position: "relative", border: `1px solid ${C.line}`, padding: 14, marginBottom: 14 }}>
             <Corners />
-            <Kicker color={C.amber} style={{ letterSpacing: "0.12em", marginBottom: 6 }}>THEY CALLED · NEW OFFER ON THE TABLE</Kicker>
+            <Kicker color={C.amber} style={{ letterSpacing: "0.08em", marginBottom: 6 }}>THEY CALLED · NEW OFFER ON THE TABLE</Kicker>
             {[
               ['"Manager special" price', fmt(counter), C.ink],
               ["Your standing number", fmt(n.target), C.green],
@@ -73,7 +73,7 @@ export function Walked({ deal, median, onGarage }) {
         {["The price drops", "Day 60 on the lot", "It sells — with what it sold for"].map((t, i, arr) => (
           <div key={t} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: 44, borderBottom: i < arr.length - 1 ? `1px dashed ${C.line}` : "none", fontSize: 13.5 }}>
             <span>{t}</span>
-            <span style={{ fontFamily: mono, fontSize: 10, color: C.green, fontWeight: 700 }}>ON</span>
+            <span style={{ fontFamily: mono, fontSize: 12, color: C.green, fontWeight: 700 }}>ON</span>
           </div>
         ))}
       </div>
@@ -106,7 +106,7 @@ export function Receipt({ deal, median, onDone }) {
       <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
         <div style={{ position: "relative", background: C.ink, color: C.onInk, padding: 22, textAlign: "center", marginBottom: 16, border: `1px solid ${C.line}` }}>
           <Corners color="rgba(255,255,255,0.45)" />
-          <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.16em", opacity: 0.7 }}>VS THEIR FIRST SHEET, YOU KEPT</div>
+          <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", opacity: 0.7 }}>VS THEIR FIRST SHEET, YOU KEPT</div>
           <div style={{ fontFamily: mono, fontSize: 44, fontWeight: 800, margin: "6px 0 2px", color: C.onNavySuccess }}>{fmt(kept)}</div>
           <div style={{ fontSize: 13, opacity: 0.85 }}>{deal.vehicle} · signed at {fmt(n.target)}</div>
         </div>
@@ -159,7 +159,7 @@ export function FreshStart({ deal, onStart }) {
           You'd carry {fmt(gap)} of the {deal.trade.car.split(" ").pop()} into any new loan. No one selling cars will tell you that. We will — with the way out.
         </div>
         <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, marginBottom: 14 }}>
-          <Kicker style={{ letterSpacing: "0.12em", marginBottom: 6 }}>{deal.trade.car.toUpperCase()} · UNDERWATER</Kicker>
+          <Kicker style={{ letterSpacing: "0.08em", marginBottom: 6 }}>{deal.trade.car.toUpperCase()} · UNDERWATER</Kicker>
           {[
             ["Loan payoff", fmt(deal.trade.payoff)],
             ["Market value", fmt(deal.trade.offer)],
@@ -178,7 +178,7 @@ export function FreshStart({ deal, onStart }) {
           </div>
         </div>
         <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, marginBottom: 14 }}>
-          <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 8 }}>SPEED IT UP — EXTRA TOWARD PAYOFF</Kicker>
+          <Kicker color={C.accentText} style={{ letterSpacing: "0.08em", marginBottom: 8 }}>SPEED IT UP — EXTRA TOWARD PAYOFF</Kicker>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>Extra per month</span>
             <button onClick={() => setExtra(Math.max(0, extra - 25))} aria-label="Less extra payment" style={{ width: 44, height: 44, border: `1px solid ${C.line}`, background: C.paper, fontSize: 18, fontWeight: 700, cursor: "pointer", color: C.ink }}>−</button>
@@ -197,7 +197,7 @@ export function FreshStart({ deal, onStart }) {
           ["FLAG", C.redBg, C.red, `Roll the ${fmt(gap)} into a new loan`, `+${fmt(rollCost)} interest`, C.red],
         ].map(([chip, bg, fg, t, v, vc], i, arr) => (
           <div key={t} style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "9px 0", borderBottom: i < arr.length - 1 ? `1px dashed ${C.line}` : "none" }}>
-            <span style={{ background: bg, color: fg, fontFamily: mono, fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", padding: "3px 6px" }}>{chip}</span>
+            <span style={{ background: bg, color: fg, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", padding: "3px 6px" }}>{chip}</span>
             <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600 }}>{t}</span>
             <span style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: vc }}>{v}</span>
           </div>

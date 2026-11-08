@@ -135,7 +135,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
           {TRUST.map((t) => (
             <span
               key={t}
-              style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.05em", color: C.green, background: C.greenBg, padding: "3px 8px" }}
+              style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.05em", color: C.green, background: C.greenBg, padding: "3px 8px" }}
             >
               {t}
             </span>
@@ -156,7 +156,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
         <div style={{ margin: "14px 16px 0", border: `1px solid ${C.line}`, background: C.card, padding: "12px 13px 4px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <h2 style={{ fontFamily: heading, fontWeight: 700, fontSize: 20, margin: 0 }}>Your plan</h2>
-            <span style={{ fontFamily: mono, fontSize: 10, color: C.green }}>{doneCount} OF {plan.length} DONE</span>
+            <span style={{ fontFamily: mono, fontSize: 12, color: C.green }}>{doneCount} OF {plan.length} DONE</span>
           </div>
           <div aria-hidden="true" style={{ height: 5, background: C.line, margin: "8px 0 4px" }}>
             <div style={{ height: 5, width: `${(doneCount / plan.length) * 100}%`, background: C.greenFill }} />
@@ -181,7 +181,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
       {/* ── returning buyer: only what's actually on the device ── */}
       {resume && (
         <div style={{ margin: "14px 16px 0", border: `1px solid ${C.green}`, background: C.greenBg, padding: "12px 13px" }}>
-          <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.07em", color: C.green }}>
+          <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.07em", color: C.green }}>
             WELCOME BACK — PICK UP WHERE YOU LEFT OFF
           </div>
           <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 17, marginTop: 3 }}>{resume.title}</div>
@@ -226,7 +226,7 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
                 <b style={{ fontFamily: heading, fontWeight: 600, fontSize: 19, lineHeight: 1.12 }}>{d.title}</b>
                 <span style={{ fontSize: 13, lineHeight: 1.4, color: d.urgent ? "#B9C6D6" : C.inkSoft }}>{d.blurb}</span>
               </span>
-              <span style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, color: d.urgent ? C.onNavySuccess : C.accentText }}>{d.cta}</span>
+              <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", fontWeight: 700, color: d.urgent ? C.onNavySuccess : C.accentText }}>{d.cta}</span>
             </button>
             );
           })}

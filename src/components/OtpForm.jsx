@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { C, mono } from "../theme.js";
 import { sendOtp, verifyOtp, getSession, signInCopy, friendlySendError } from "../lib/supabase.js";
-import { PrimaryBtn, GhostBtn } from "./ui.jsx";
+import { PrimaryBtn, GhostBtn, FieldError } from "./ui.jsx";
 
 /* The account door, in one reusable piece: a field that takes an email
    (and a phone number too, once texts are switched on; see
@@ -30,6 +30,12 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   const [note, setNote] = useState(null);
   const codeRef = useRef(null);
   const copy = signInCopy();
+  /* When something goes wrong, put focus back where the fix happens. */
+  useEffect(() => {
+    if (!error) return;
+    if (step === "identifier") document.getElementById("ds-identifier")?.focus();
+    else codeRef.current?.focus();
+  }, [error]);
   /* Already signed in on this device? Don't ask for a code again (a
      second sign-in over a live session is what broke the demo login).
      Say so, and offer the way home. */
@@ -93,9 +99,8 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   };
 
   const field = { minHeight: 50, border: `1.5px solid ${C.line}`, background: C.card, padding: "0 14px", fontSize: 15, fontFamily: mono, color: C.ink, width: "100%", boxSizing: "border-box" };
-  const errorBox = error && (
-    <div style={{ background: C.amberBg, color: C.amberDark, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, lineHeight: 1.45, marginTop: 8 }}>{error}</div>
-  );
+  /* The error belongs to the field: under it, announced, linked. */
+  const errorBox = <FieldError id="ds-otp-error">{error}</FieldError>;
 
   if (existing) {
     const u = existing.user || {};
@@ -113,8 +118,7 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
   if (step === "identifier")
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {errorBox}
-        <label htmlFor="ds-identifier" style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", color: C.inkSoft }}>
+        <label htmlFor="ds-identifier" style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.inkSoft }}>
           {copy.label}
         </label>
         <input
@@ -127,8 +131,11 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
           inputMode="email"
           autoComplete={copy.autoComplete}
           autoFocus={autoFocus}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "ds-otp-error" : undefined}
           style={field}
         />
+        {errorBox}
         <PrimaryBtn onClick={() => send()} height={50}>
           {busy === "send" ? "SENDING…" : sendLabel}
         </PrimaryBtn>
@@ -148,6 +155,9 @@ export function OtpForm({ onDone, sendLabel = "SEND MY CODE", autoFocus = false 
         onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, dest?.demo ? 8 : 6))}
         onKeyDown={(e) => e.key === "Enter" && !busy && verify()}
         placeholder="123456"
+        aria-label={dest?.demo ? "Demo code" : "6-digit code"}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "ds-otp-error" : undefined}
         type="text"
         inputMode="numeric"
         autoComplete="one-time-code"

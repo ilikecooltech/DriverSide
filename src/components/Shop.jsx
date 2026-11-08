@@ -87,12 +87,12 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
       {/* goal banner — the recommendation's reason, always visible */}
       <div style={{ background: C.accentTint, padding: "12px 14px", marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-          <Kicker color={C.accentText} style={{ letterSpacing: "0.12em" }}>SHOPPING FOR YOUR GOAL</Kicker>
+          <Kicker color={C.accentText} style={{ letterSpacing: "0.08em" }}>SHOPPING FOR YOUR GOAL</Kicker>
           <button onClick={onOpenGoal} style={{ minHeight: 44, minWidth: 44, fontSize: 11.5, fontWeight: 700, color: C.accentText, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
             Change goal
           </button>
         </div>
-        <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 20, marginTop: 2 }}>{archetypeName || "Commuter Math"}</div>
+        <h1 style={{ margin: "2px 0 0", fontFamily: heading, fontWeight: 600, fontSize: 20 }}><span className="ds-sr">Shopping for: </span>{archetypeName || "Commuter Math"}</h1>
         <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, marginTop: 2 }}>{profile.why}</div>
       </div>
 
@@ -102,18 +102,23 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
           <button
             key={b}
             onClick={() => set("bodyType", filters.bodyType === b ? "" : b)}
+            aria-pressed={filters.bodyType === b}
             style={{
+              /* On: solid ink and a check mark, not just a tint (WCAG 1.4.1). */
               minHeight: 44, padding: "0 14px", cursor: "pointer", fontSize: 13, fontWeight: 700,
-              border: `1px solid ${filters.bodyType === b ? C.accent : C.line}`,
-              background: filters.bodyType === b ? C.accentTint : C.card,
-              color: filters.bodyType === b ? C.accentText : C.ink,
+              display: "inline-flex", alignItems: "center", gap: 6,
+              border: `1.5px solid ${filters.bodyType === b ? C.ink : C.control}`,
+              background: filters.bodyType === b ? C.ink : C.card,
+              color: filters.bodyType === b ? C.onInk : C.ink,
             }}
           >
+            {filters.bodyType === b && <span aria-hidden="true">✓</span>}
             {b}
           </button>
         ))}
         <button
           onClick={() => setShowFilters(!showFilters)}
+          aria-expanded={showFilters}
           style={{ minHeight: 44, padding: "0 14px", cursor: "pointer", fontSize: 13, fontWeight: 700, border: `1px solid ${C.line}`, background: C.card, color: C.accentText, marginLeft: "auto" }}
         >
           {showFilters ? "Hide filters −" : "More filters +"}
@@ -124,8 +129,10 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
         <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, marginBottom: 12 }}>
           {["maxPrice", "maxMiles", "minYear", "radius"].map(stepper)}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>ZIP</span>
+            <label htmlFor="shop-zip" style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>ZIP</label>
             <input
+              id="shop-zip"
+              autoComplete="postal-code"
               value={filters.zip}
               onChange={(e) => set("zip", e.target.value.replace(/\D/g, "").slice(0, 5))}
               inputMode="numeric"
@@ -146,10 +153,10 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
           {source === "loading" ? "SEARCHING…" : `${ranked.length} MATCHES · SORTED BY FIT`}
         </Kicker>
         {source === "sample" && (
-          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.amber, background: C.amberBg, padding: "3px 7px" }}>SAMPLE INVENTORY</span>
+          <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.amber, background: C.amberBg, padding: "3px 7px" }}>SAMPLE INVENTORY</span>
         )}
         {source === "live" && (
-          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.green }}>LIVE · {filters.zip}</span>
+          <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.green }}>LIVE · {filters.zip}</span>
         )}
       </div>
 
@@ -181,12 +188,12 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
               >
               <VehicleImage src={v.image} alt={[v.year, v.make, v.model, v.trim].filter(Boolean).join(" ")} />
               {v.photos?.length > 1 && (
-                <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(22,35,59,0.8)", color: "#fff", fontFamily: mono, fontSize: 9.5, letterSpacing: "0.08em", padding: "3px 7px" }}>
+                <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(22,35,59,0.8)", color: "#fff", fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", padding: "3px 7px" }}>
                   {v.photos.length} PHOTOS
                 </div>
               )}
               {i === 0 && (
-                <div style={{ position: "absolute", top: -1, right: -1, background: C.green, color: "#fff", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", padding: "4px 8px" }}>BEST MATCH</div>
+                <div style={{ position: "absolute", top: -1, right: -1, background: C.green, color: "#fff", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", padding: "4px 8px" }}>BEST MATCH</div>
               )}
               <div style={{ padding: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
@@ -211,7 +218,7 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5 }}>
                   <span style={{ color: tone, fontWeight: 700 }}>{val.text}</span>
-                  <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, marginLeft: "auto" }}>
+                  <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, marginLeft: "auto" }}>
                     {v.days ? `${v.days} days on lot` : ""}
                   </span>
                 </div>

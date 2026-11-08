@@ -59,7 +59,7 @@ export function ManualEntry({ onDecode, onBack, initial }) {
     );
   };
 
-  const lab = { display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" };
+  const lab = { display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" };
   const box = { width: "100%", boxSizing: "border-box", minHeight: 44, padding: "8px 10px", border: `1px solid ${C.line}`, background: C.card, fontSize: 14, fontWeight: 600, color: C.ink };
   const input = (f) => (
     <div key={f.k}>
@@ -77,7 +77,7 @@ export function ManualEntry({ onDecode, onBack, initial }) {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0, overflowY: "auto" }}>
-      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em" }}>MANUAL ENTRY · 30 SECONDS</Kicker>
+      <Kicker color={C.accentText} style={{ letterSpacing: "0.08em" }}>MANUAL ENTRY · 30 SECONDS</Kicker>
       <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 24, lineHeight: 1.15, margin: "6px 0 4px" }}>
         Type what's on their sheet.
       </h1>

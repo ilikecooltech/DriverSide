@@ -43,7 +43,7 @@ export function SignInPrompt({ capability, onSignedIn, onClose }) {
           adopt the user rather than wait on onAuthChange. */}
       <OtpForm onDone={(session) => onSignedIn(session)} sendLabel="SEND MY CODE" autoFocus />
 
-      <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.06em", color: C.inkSoft, marginTop: 14, lineHeight: 1.6 }}>
+      <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: C.inkSoft, marginTop: 14, lineHeight: 1.6 }}>
         USED FOR SIGN-IN AND THE ALERTS YOU CHOOSE. NOTHING ELSE.
       </div>
 

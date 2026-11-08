@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { C, mono, heading } from "../theme.js";
 import { QUESTIONS, ARCHETYPES, scoreArchetype } from "../data/archetypes.js";
 import { Kicker, Corners, PrimaryBtn, GhostBtn } from "./ui.jsx";
@@ -14,6 +14,15 @@ import { Kicker, Corners, PrimaryBtn, GhostBtn } from "./ui.jsx";
    the lot to get back into the app. */
 export function Onboarding({ onConfirm, onCancel }) {
   const [step, setStep] = useState(0);
+  /* Each answer swaps the question in place. Move focus to the new
+     question so keyboard and screen reader users aren't left on nothing. */
+  const root = useRef(null);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) { firstStep.current = false; return; }
+    const h = root.current?.querySelector("h1");
+    if (h) { h.setAttribute("tabindex", "-1"); h.focus(); }
+  }, [step]);
   const [answers, setAnswers] = useState({});
   const [editing, setEditing] = useState(false);
 
@@ -33,15 +42,15 @@ export function Onboarding({ onConfirm, onCancel }) {
 
   if (!done)
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0 }}>
+      <div ref={root} style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0 }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
           {QUESTIONS.map((_, i) => (
             <div key={i} style={{ flex: 1, height: 4, background: i <= step ? C.accent : C.line }} />
           ))}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
-          <Kicker color={C.accentText} style={{ letterSpacing: "0.12em" }}>{q.label}</Kicker>
-          <span style={{ fontFamily: mono, fontSize: 10, color: C.inkSoft }}>{Math.min(step, 4) + 1} OF 5</span>
+          <Kicker color={C.accentText} style={{ letterSpacing: "0.08em" }}>{q.label}</Kicker>
+          <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft }}>{Math.min(step, 4) + 1} OF 5</span>
         </div>
         <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 24, lineHeight: 1.2, margin: "0 0 6px" }}>{q.q}</h1>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 16 }}>{q.cue}</div>
@@ -76,7 +85,7 @@ export function Onboarding({ onConfirm, onCancel }) {
 
   if (editing)
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0 }}>
+      <div ref={root} style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0 }}>
         <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 22, margin: "0 0 4px" }}>Your five answers</h1>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 14 }}>Change any one — the goal re-reads instantly.</div>
         {QUESTIONS.map((qq, i) => (
@@ -85,7 +94,7 @@ export function Onboarding({ onConfirm, onCancel }) {
             onClick={() => { setStep(i); setEditing(false); }}
             style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", minHeight: 52, border: "none", borderBottom: `1px dashed ${C.line}`, background: "none", cursor: "pointer", textAlign: "left", padding: "6px 0" }}
           >
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, width: 88 }}>{qq.label.replace(" · ", " — ")}</span>
+            <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, width: 88 }}>{qq.label.replace(" · ", " — ")}</span>
             <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: C.ink }}>{(qq.opts.find(([v]) => v === answers[qq.id]) || [null, "—"])[1]}</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: C.accentText }}>Change</span>
           </button>
@@ -95,15 +104,15 @@ export function Onboarding({ onConfirm, onCancel }) {
     );
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0, overflowY: "auto" }}>
+    <div ref={root} style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20, minHeight: 0, overflowY: "auto" }}>
       <div style={{ position: "relative", background: C.ink, color: "#fff", padding: "26px 22px", border: `1px solid ${C.line}` }}>
         <Corners color="rgba(255,255,255,0.45)" />
-        <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.16em", opacity: 0.7, marginBottom: 12 }}>READ FROM YOUR FIVE ANSWERS</div>
-        <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 42, lineHeight: 1 }}>{arch.name}</div>
+        <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", opacity: 0.7, marginBottom: 12 }}>READ FROM YOUR FIVE ANSWERS</div>
+        <h1 style={{ margin: 0, fontFamily: heading, fontWeight: 600, fontSize: 42, lineHeight: 1 }}><span className="ds-sr">Your goal: </span>{arch.name}</h1>
         <div style={{ fontSize: 14, opacity: 0.85, margin: "8px 0 14px" }}>{arch.tag}</div>
         <div style={{ fontSize: 13.5, lineHeight: 1.55, opacity: 0.92 }}>{arch.desc}</div>
       </div>
-      <Kicker style={{ letterSpacing: "0.12em", margin: "18px 0 8px" }}>SO EVERY NUMBER WE SHOW YOU OPTIMIZES</Kicker>
+      <Kicker style={{ letterSpacing: "0.08em", margin: "18px 0 8px" }}>SO EVERY NUMBER WE SHOW YOU OPTIMIZES</Kicker>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {arch.opts.map((t) => (
           <span key={t} style={{ border: `1px solid ${C.line}`, background: C.card, fontSize: 12.5, fontWeight: 600, padding: "8px 12px" }}>✓ {t}</span>

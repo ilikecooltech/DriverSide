@@ -31,6 +31,8 @@ import { useApproxLocation } from "./lib/location.js";
 import { DealerHome, DealerLive } from "./components/Dealer.jsx";
 import { newSession } from "./data/dealer.js";
 import { DealStrip } from "./components/DealStrip.jsx";
+import { announce } from "./lib/announce.js";
+import { screenTitle as pageTitle, focusMainHeading } from "./lib/screen.js";
 import { AskButton, AskSheet, useAskOn } from "./components/AskSheet.jsx";
 
 /* Three stages, in the order a buyer actually moves through them:
@@ -248,9 +250,14 @@ export default function App() {
   const addCar = (item, src) => {
     const car = item.title ? item : toGarageItem(item, src);
     setCars((prev) => (prev.some((c) => c.id === car.id) ? prev : [...prev, car]));
+    announce(`Saved ${car.title} to your Garage.`);
     track("vehicle_saved", { vehicle: car.title, price: car.price, source: car.src });
   };
-  const removeCar = (id) => setCars((prev) => prev.filter((c) => c.id !== id));
+  const removeCar = (id) => {
+    const gone = cars.find((c) => c.id === id);
+    setCars((prev) => prev.filter((c) => c.id !== id));
+    if (gone) announce(`Removed ${gone.title} from your Garage.`);
+  };
   const addOwned = (car) => {
     setOwned((prev) => (prev.some((c) => c.id === car.id) ? prev : [...prev, car]));
     track("owned_car_added", { vehicle: car.title, has_mpg: Boolean(car.stats?.mpgCity), has_safety: Boolean(car.stats?.safety?.overall) });
@@ -513,6 +520,26 @@ export default function App() {
      not, and making someone answer five questions to photograph a
      worksheet they are holding would be exactly the funnel this screen
      exists to remove. Anyone who reaches Shop later still gets asked. */
+  /* Name the screen, and on every change after the first, move focus to
+     its main heading so a screen reader says where you landed (WCAG 2.4.2,
+     2.4.3). Runs after the new screen has rendered. */
+  const DEALER_NAMES = { home: "At the dealer", live: "At the dealer", capture: "Photograph the quote", manual: "Type in the quote", decoder: "Your quote, decoded", paywall: "Deal Pass" };
+  const screenName = !auth ? "Start"
+    : (tab === "shop" && !onboarded) || editingGoal ? "Your goal"
+    : signInAsk ? "Sign in"
+    : showProfile ? "Profile"
+    : vehicle && (tab === "shop" || tab === "garage") ? [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(" ")
+    : tab === "tools" ? (toolsView.calc ? "Calculator" : "Tools")
+    : tab === "dealer" ? DEALER_NAMES[dealView] || "At the dealer"
+    : { start: "Start", shop: "Shop", garage: "Garage" }[tab] || "DriverSide";
+  const firstScreen = useRef(true);
+  useEffect(() => {
+    document.title = pageTitle(screenName);
+    if (firstScreen.current) { firstScreen.current = false; return; }
+    const t = setTimeout(() => focusMainHeading(), 30);
+    return () => clearTimeout(t);
+  }, [screenName, tab, dealView, showProfile, Boolean(vehicle), toolsView.calc]);
+
   if (!auth)
     return (
       /* "START", not the Shell's default "SIGN IN" label — on this screen
@@ -637,7 +664,7 @@ export default function App() {
             </>
           )}
           {!(tab === "dealer" && dealView === "decoder") && (
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>
+            <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>
               {screenTitle}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
             </span>
           )}
@@ -654,7 +681,7 @@ export default function App() {
             <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 13 }}>
               {auth === "guest" ? "G" : (userName || "D")[0].toUpperCase()}
             </span>
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>PROFILE</span>
+            <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>PROFILE</span>
           </button>
         </div>
       }
@@ -678,7 +705,7 @@ export default function App() {
       }
       ask={askOn && (
         <>
-          {!askOpen && <AskButton dark={dark} desktop={desktop} onOpen={() => { setAskOpen(true); track("ask_opened", { screen: showProfile ? "profile" : tab }); }} />}
+          <AskButton dark={dark} desktop={desktop} onOpen={() => { setAskOpen(true); track("ask_opened", { screen: showProfile ? "profile" : tab }); }} />
           <AskSheet
             open={askOpen}
             onClose={() => setAskOpen(false)}
@@ -904,7 +931,7 @@ export default function App() {
   );
 }
 
-const mastBtn = { fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
+const mastBtn = { fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.accentText, background: "none", border: `1px solid ${C.line}`, padding: "5px 8px", cursor: "pointer" };
 
 /* The masthead, the Start screen and the bottom bar are one system: card
    surfaces with hairline rules bracketing the paper content between them,
@@ -980,17 +1007,24 @@ function Shell({ masthead, tabs, bottomNav, back, strip, ask, context, children,
   return (
     <div className={dark ? "ds-dark" : undefined} style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
       <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: bg, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${rule}`, borderRight: `1px solid ${rule}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT + (ask ? 64 : 0)}px + env(safe-area-inset-bottom))` : 0 }}>
+        <a className="ds-skip" href="#ds-main">Skip to content</a>
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}
-        <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
-          {back ? <BackButton label={back.label} onClick={back.onClick} dark={dark} /> : <Wordmark onHome={onHome} dark={dark} />}
-          {masthead || (
-            <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
-          )}
-        </div>
-        {strip}
-        {tabs}
-        {children}
+        <header style={{ display: "contents" }}>
+          <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
+            {back ? <BackButton label={back.label} onClick={back.onClick} dark={dark} /> : <Wordmark onHome={onHome} dark={dark} />}
+            {masthead || (
+              <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: dark ? D.ink2 : C.inkSoft }}>{context || ""}</span>
+            )}
+          </div>
+          {strip}
+          {tabs}
+        </header>
+        <main id="ds-main" tabIndex={-1} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {children}
+        </main>
+        {/* Spoken confirmations (see lib/announce.js). */}
+        <div id="ds-announce" role="status" aria-live="polite" className="ds-sr" />
         {/* The nav is fixed, so the column reserves its height rather than
             letting content scroll underneath it. */}
         {bottomNav}

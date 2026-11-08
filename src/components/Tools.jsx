@@ -330,7 +330,7 @@ export function Tools({ setup, cars = [], owned = [], gas = null, loc = null, zi
             ))}
           </div>
         )}
-        <div style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.1em", color: signedIn ? C.green : C.inkSoft }}>{saveLine}</div>
+        <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: signedIn ? C.green : C.inkSoft }}>{saveLine}</div>
       </div>
     );
   }

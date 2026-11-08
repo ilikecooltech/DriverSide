@@ -11,6 +11,7 @@ export function DealStrip({ session, onOpen }) {
   const chip = s.tone === "over" ? { background: C.red, color: "#FFFFFF" } : s.tone === "ok" ? { background: C.greenFill, color: "#FFFFFF" } : null;
   return (
     <button
+      className="ds-onnavy"
       onClick={onOpen}
       aria-label={`Your deal: ${s.title}${s.latest ? `, ${s.latestLabel.toLowerCase()} ${fmt(s.latest)}` : ""}${s.gapText ? `, ${s.gapText}` : ""}. Back to your session`}
       style={{
@@ -20,16 +21,16 @@ export function DealStrip({ session, onOpen }) {
     >
       <span className="ds-pulse" aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: "#F08C7E", flexShrink: 0 }} />
       <span style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
-        <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: "#A9B4C4" }}>YOUR DEAL</span>
+        <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: "#A9B4C4" }}>YOUR DEAL</span>
         <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.title}</span>
       </span>
       {s.latest ? (
         <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
           <span style={{ fontFamily: heading, fontWeight: 700, fontSize: 17, fontVariantNumeric: "tabular-nums", lineHeight: 1.1 }}>{fmt(s.latest)}</span>
           {chip ? (
-            <span style={{ ...chip, fontFamily: mono, fontSize: 9.5, fontWeight: 700, padding: "1px 5px", marginTop: 2 }}>{s.gapText}</span>
+            <span style={{ ...chip, fontFamily: mono, fontSize: 12, fontWeight: 700, padding: "1px 5px", marginTop: 2 }}>{s.gapText}</span>
           ) : (
-            <span style={{ fontFamily: mono, fontSize: 9.5, color: "#A9B4C4" }}>{s.latestLabel.toUpperCase()}</span>
+            <span style={{ fontFamily: mono, fontSize: 12, color: "#A9B4C4" }}>{s.latestLabel.toUpperCase()}</span>
           )}
         </span>
       ) : null}

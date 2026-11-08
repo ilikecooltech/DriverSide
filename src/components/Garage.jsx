@@ -33,10 +33,10 @@ function AddVehicle({ onAdd, onCancel }) {
 
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 12 }}>
-      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>ADD A CAR BY HAND</Kicker>
+      <Kicker color={C.accentText} style={{ letterSpacing: "0.08em", marginBottom: 10 }}>ADD A CAR BY HAND</Kicker>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <div>
-          <label htmlFor="add-year" style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>Year</label>
+          <label htmlFor="add-year" style={{ display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>Year</label>
           <select id="add-year" value={v.year || ""} onChange={(e) => setV({ ...v, year: e.target.value })}
             style={{ width: "100%", boxSizing: "border-box", minHeight: 44, padding: "8px 10px", border: `1px solid ${C.line}`, background: C.paper, fontFamily: mono, fontSize: 14, fontWeight: 600, color: C.ink }}>
             <option value="">Year</option>
@@ -45,7 +45,7 @@ function AddVehicle({ onAdd, onCancel }) {
         </div>
         {ADD_FIELDS.map((f) => (
           <div key={f.k}>
-            <label style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
+            <label style={{ display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
             <input
               value={v[f.k] || ""}
               onChange={(e) => setV({ ...v, [f.k]: f.max ? e.target.value.slice(0, f.max) : e.target.value })}
@@ -76,7 +76,7 @@ function AddVehicle({ onAdd, onCancel }) {
 }
 
 const tag = (text, bg, color) => (
-  <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.08em", fontWeight: 700, color, background: bg, padding: "2px 6px", verticalAlign: "middle" }}>{text}</span>
+  <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", fontWeight: 700, color, background: bg, padding: "2px 6px", verticalAlign: "middle" }}>{text}</span>
 );
 
 /* A car the buyer already owns: no price or match, just what it costs
@@ -162,10 +162,11 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
+      <h1 className="ds-sr">Your Garage</h1>
       {loc && <GasLine gas={gas} loc={loc} zip={zip} style={{ marginBottom: 14 }} />}
       {(owned.length > 0 || addingOwned) && (
         <section aria-label="Cars you own" style={{ marginBottom: 18 }}>
-          <Kicker style={{ letterSpacing: "0.12em", marginBottom: 10 }}>{owned.length ? `CARS YOU OWN · ${owned.length}` : "CARS YOU OWN"}</Kicker>
+          <Kicker style={{ letterSpacing: "0.08em", marginBottom: 10 }}>{owned.length ? `CARS YOU OWN · ${owned.length}` : "CARS YOU OWN"}</Kicker>
           {ownedForm}
           <div style={{ display: "grid", gridTemplateColumns: desktop ? "1fr 1fr" : "1fr", gap: 12 }}>
             {owned.map((c) => <OwnedCard key={c.id} car={c} gas={gas} onRemove={onRemoveOwned} onStats={onCarStats} />)}
@@ -175,10 +176,10 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
 
       {cars.length > 0 && (
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, gap: 8 }}>
-        <Kicker style={{ letterSpacing: "0.12em" }}>
+        <Kicker style={{ letterSpacing: "0.08em" }}>
           {cars.length} SAVED · SCORED FOR {(archetypeName || "YOUR GOAL").toUpperCase()}
         </Kicker>
-        <span style={{ fontFamily: mono, fontSize: 9, color: C.inkSoft }}>YOUR ORDER</span>
+        <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft }}>YOUR ORDER</span>
       </div>
       )}
 
@@ -190,7 +191,7 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
           style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", marginBottom: 12, border: `1px solid ${C.line}`, background: C.card, cursor: "pointer", color: C.ink, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, textAlign: "left" }}
         >
           Buying with someone? Share this garage
-          <span style={{ fontFamily: mono, fontSize: 10.5, color: C.accentText, letterSpacing: "0.08em" }}>SHARE</span>
+          <span style={{ fontFamily: mono, fontSize: 12, color: C.accentText, letterSpacing: "0.08em" }}>SHARE</span>
         </button>
       )}
 
@@ -209,12 +210,12 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                   <div style={{ fontSize: 15.5, fontWeight: 700 }}>
                     {g.title}
                     {watchingIds.includes(g.id) && (
-                      <span style={{ marginLeft: 8, verticalAlign: "middle", fontFamily: mono, fontSize: 9.5, letterSpacing: "0.08em", color: C.accentText, background: C.accentTint, padding: "2px 6px" }}>WATCHING</span>
+                      <span style={{ marginLeft: 8, verticalAlign: "middle", fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.accentText, background: C.accentTint, padding: "2px 6px" }}>WATCHING</span>
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>
                     {g.miles ? `${Math.round(g.miles / 1000)}k mi · ` : ""}
-                    <span style={{ fontFamily: mono, fontSize: 10, border: `1px solid ${C.line}`, padding: "1px 5px" }}>{g.src}</span>
+                    <span style={{ fontFamily: mono, fontSize: 12, border: `1px solid ${C.line}`, padding: "1px 5px" }}>{g.src}</span>
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -230,9 +231,9 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
               <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5 }}>
                 <span style={{ color: tone, fontWeight: 700 }}>{val.text}</span>
                 {g.drop && (
-                  <span style={{ fontFamily: mono, fontSize: 10.5, color: C.green, fontWeight: 700, background: C.greenBg, padding: "2px 6px" }}>{g.drop}</span>
+                  <span style={{ fontFamily: mono, fontSize: 12, color: C.green, fontWeight: 700, background: C.greenBg, padding: "2px 6px" }}>{g.drop}</span>
                 )}
-                <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, marginLeft: "auto" }}>
+                <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, marginLeft: "auto" }}>
                   {g.days ? `${g.days} days on lot` : ""}
                 </span>
               </div>
@@ -241,7 +242,7 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
 
               {/* buyer's own ranking + remove */}
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, borderTop: `1px dashed ${C.line}`, paddingTop: 10 }}>
-                <label style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft }} htmlFor={`rank-${g.id}`}>
+                <label style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft }} htmlFor={`rank-${g.id}`}>
                   MY RANK
                 </label>
                 <select
@@ -255,12 +256,12 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                   ))}
                 </select>
                 {onOpen && (
-                  <button onClick={() => onOpen(g)} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
+                  <button onClick={() => onOpen(g)} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 12, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "6px 2px" }}>
                     DETAILS →
                   </button>
                 )}
                 {g.decoded && (
-                  <button onClick={onOpenDecode} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 10.5, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <button onClick={onOpenDecode} style={{ minHeight: 44, minWidth: 44, fontFamily: mono, fontSize: 12, color: C.accentText, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                     QUOTE DECODED →
                   </button>
                 )}

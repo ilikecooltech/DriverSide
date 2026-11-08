@@ -11,7 +11,7 @@ export function GasLine({ gas, loc, zip, style }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", border: `1px solid ${C.line}`, background: C.card, padding: "8px 12px", ...style }}>
       <div style={{ flex: "1 1 180px", minWidth: 0 }}>
-        <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft }}>GAS {where.toUpperCase()}</div>
+        <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft }}>GAS {where.toUpperCase()}</div>
         <div style={{ fontSize: 14, fontWeight: 700 }}>
           {gas ? `$${gas.price.toFixed(2)}/gal regular` : loc?.status === "asking" ? "Finding your area…" : "Not available right now"}
         </div>

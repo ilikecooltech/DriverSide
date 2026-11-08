@@ -39,11 +39,11 @@ function SetupEditor({ setup, onSave, onCancel }) {
   ];
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 16 }}>
-      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>EDIT YOUR SHOPPING SETUP</Kicker>
+      <Kicker color={C.accentText} style={{ letterSpacing: "0.08em", marginBottom: 10 }}>EDIT YOUR SHOPPING SETUP</Kicker>
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
         {T.map((f) => (
           <div key={f.k}>
-            <label htmlFor={`setup-${f.k}`} style={{ display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
+            <label htmlFor={`setup-${f.k}`} style={{ display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" }}>{f.label}</label>
             <input
               id={`setup-${f.k}`}
               value={v[f.k] ?? ""}
@@ -94,6 +94,7 @@ export function Profile({
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, minHeight: 0 }}>
+      <h1 className="ds-sr">Profile</h1>
       {/* The app bar already shows a named Back when there is somewhere to go back to. */}
       {!hideBack && <button onClick={onBack} style={{ minHeight: 44, background: "none", border: "none", color: C.inkSoft, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: 0, marginBottom: 4 }}>← Back</button>}
 
@@ -106,7 +107,7 @@ export function Profile({
           </div>
           <button
             onClick={() => onRequireAccount?.("alerts")}
-            style={{ minHeight: 44, width: "100%", border: `1.5px solid ${C.amberDark}`, background: C.card, color: C.amberDark, fontFamily: mono, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}
+            style={{ minHeight: 44, width: "100%", border: `1.5px solid ${C.amberDark}`, background: C.card, color: C.amberDark, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer" }}
           >
             CREATE AN ACCOUNT — KEEPS EVERYTHING YOU'VE BUILT
           </button>
@@ -175,7 +176,7 @@ export function Profile({
           style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 48, border: "none", borderBottom: `1px dashed ${C.line}`, background: "none", cursor: "pointer", fontSize: 13.5, color: isGuest ? C.inkSoft : C.ink, padding: 0, textAlign: "left" }}
         >
           <span>{t}</span>
-          <span style={{ fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", padding: "6px 10px", border: `1px solid ${!isGuest && al[i] ? C.green : C.dash}`, background: !isGuest && al[i] ? C.greenBg : C.card, color: !isGuest && al[i] ? C.green : C.inkSoft }}>
+          <span style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", padding: "6px 10px", border: `1px solid ${!isGuest && al[i] ? C.green : C.dash}`, background: !isGuest && al[i] ? C.greenBg : C.card, color: !isGuest && al[i] ? C.green : C.inkSoft }}>
             {!isGuest && al[i] ? "ON" : "OFF"}
           </span>
         </button>

@@ -34,7 +34,7 @@ export function CarStats({ car, gas, onStats, compact = false }) {
         <dl style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 12px", margin: 0 }}>
           {shown.map(([k, v, note]) => (
             <div key={k} style={{ minWidth: 0 }}>
-              <dt style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, textTransform: "uppercase" }}>{k}</dt>
+              <dt style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, textTransform: "uppercase" }}>{k}</dt>
               <dd style={{ margin: "1px 0 0", fontSize: 14, fontWeight: 700, lineHeight: 1.25 }}>{v}</dd>
               {note && <dd style={{ margin: "1px 0 0", fontSize: 11, color: C.inkSoft, lineHeight: 1.35 }}>{note}</dd>}
             </div>

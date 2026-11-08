@@ -14,7 +14,7 @@ export async function lookupProblems(car) {
 }
 
 const chip = (text, tone) => (
-  <span key={text} style={{ fontFamily: mono, fontSize: 10.5, fontWeight: 700, padding: "3px 7px", background: tone === "red" ? C.redBg : tone === "amber" ? C.amberBg : C.neutralTint, color: tone === "red" ? C.red : tone === "amber" ? C.amberDark : C.ink }}>{text}</span>
+  <span key={text} style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, padding: "3px 7px", background: tone === "red" ? C.redBg : tone === "amber" ? C.amberBg : C.neutralTint, color: tone === "red" ? C.red : tone === "amber" ? C.amberDark : C.ink }}>{text}</span>
 );
 
 export function ProblemsPanel({ car, onStats }) {
@@ -92,7 +92,7 @@ export function ProblemsPanel({ car, onStats }) {
           <div key={r.id} style={{ borderTop: `1px solid ${C.line}`, padding: "8px 0" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
               <span style={{ fontSize: 13.5, fontWeight: 700 }}>{r.part}</span>
-              <span style={{ fontFamily: mono, fontSize: 10.5, color: C.inkSoft, whiteSpace: "nowrap" }}>{r.date}</span>
+              <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, whiteSpace: "nowrap" }}>{r.date}</span>
             </div>
             {(r.parkIt || r.parkOutside) && <div style={{ marginTop: 4 }}>{chip(r.parkIt ? "DON'T DRIVE UNTIL FIXED" : "PARK OUTSIDE UNTIL FIXED", "red")}</div>}
             {r.what && <div style={{ fontSize: 12.5, lineHeight: 1.5, marginTop: 3 }}>{r.what}</div>}

@@ -19,7 +19,7 @@ async function items(q) {
 }
 
 const field = { width: "100%", boxSizing: "border-box", minHeight: 44, padding: "8px 10px", border: `1px solid ${C.line}`, background: C.paper, fontSize: 14, fontWeight: 600, color: C.ink };
-const lab = { display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" };
+const lab = { display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" };
 
 function Select({ id, label, value, onChange, options, disabled, placeholder }) {
   return (
@@ -75,7 +75,7 @@ export function AddOwnedCar({ gas, onAdd, onCancel }) {
 
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 12 }}>
-      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 10 }}>ADD A CAR YOU OWN</Kicker>
+      <Kicker color={C.accentText} style={{ letterSpacing: "0.08em", marginBottom: 10 }}>ADD A CAR YOU OWN</Kicker>
       <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {[["pick", "Year, make, model"], ["vin", "VIN"]].map(([k, t]) => (
           <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)}

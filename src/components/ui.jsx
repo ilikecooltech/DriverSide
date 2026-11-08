@@ -125,7 +125,7 @@ export function VehicleImage({ src, alt, ratio = "16 / 10" }) {
           style={{
             position: "absolute", inset: 0, display: "flex",
             alignItems: "center", justifyContent: "center",
-            fontFamily: mono, fontSize: 9.5, letterSpacing: "0.12em",
+            fontFamily: mono, fontSize: 12, letterSpacing: "0.08em",
             color: C.dash,
           }}
         >
@@ -161,7 +161,7 @@ export function Chip({ verdict }) {
     red: { bg: C.redBg, fg: C.red, t: "FLAG" },
   }[verdict];
   return (
-    <span style={{ background: m.bg, color: m.fg, fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", padding: "4px 8px", whiteSpace: "nowrap" }}>
+    <span style={{ background: m.bg, color: m.fg, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", padding: "4px 8px", whiteSpace: "nowrap" }}>
       {m.t}
     </span>
   );
@@ -169,9 +169,28 @@ export function Chip({ verdict }) {
 
 /* Mono uppercase section kicker. */
 export function Kicker({ color = C.inkSoft, style, children }) {
+  /* 12px floor for every label (was 10px): these carry the numbers that
+     matter, and small spaced capitals are the hardest text to read. */
   return (
-    <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", color, fontWeight: 700, textTransform: "uppercase", ...style }}>
+    <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color, fontWeight: 700, textTransform: "uppercase", ...style }}>
       {children}
+    </div>
+  );
+}
+
+/* An error that belongs to one field: sits under it, announced when it
+   appears, linked with aria-describedby, and marked with an icon so it is
+   never color alone (WCAG 3.3.1, 4.1.3, 1.4.1). Pair with
+   aria-invalid={Boolean(error)} aria-describedby={id} on the field. */
+export function FieldError({ id, children, dark = false }) {
+  if (!children) return null;
+  return (
+    <div id={id} role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", color: dark ? "#F08C7E" : C.red, fontSize: 14, fontWeight: 600, lineHeight: 1.45 }}>
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{ flex: "none", marginTop: 2 }}>
+        <circle cx="8" cy="8" r="7.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 4v5M8 11.2v.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+      <span>{children}</span>
     </div>
   );
 }
@@ -229,7 +248,7 @@ export function DecodeLine({ line, chip, open, onToggle }) {
         aria-expanded={open}
         style={{ width: "100%", minHeight: 48, background: "none", border: "none", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", color: C.ink, padding: "4px 0", textAlign: "left" }}
       >
-        <span style={{ background: bg, color: fg, fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", padding: "4px 8px", whiteSpace: "nowrap" }}>{chip}</span>
+        <span style={{ background: bg, color: fg, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", padding: "4px 8px", whiteSpace: "nowrap" }}>{chip}</span>
         <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{line.name}</span>
         <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 700 }}>{"$" + line.amt.toLocaleString()}</span>
         <span aria-hidden="true" style={{ fontFamily: mono, color: C.inkSoft, width: 12, textAlign: "center" }}>{open ? "−" : "+"}</span>

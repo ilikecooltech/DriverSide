@@ -3,7 +3,7 @@ import { C, mono, fmt } from "../theme.js";
 import { readPaste, extractVin } from "../data/vin.js";
 import { toGarageItem } from "../data/shopping.js";
 import { track } from "../lib/analytics.js";
-import { Kicker, PrimaryBtn, GhostBtn, Slider } from "./ui.jsx";
+import { Kicker, PrimaryBtn, GhostBtn, Slider, FieldError } from "./ui.jsx";
 
 /* Add a car from any site. No marketplace lets an app read a buyer's
    saved cars, so this is the path that works everywhere: paste a link or
@@ -11,7 +11,7 @@ import { Kicker, PrimaryBtn, GhostBtn, Slider } from "./ui.jsx";
    the car up. Live listing first; a plain decode for private sellers,
    where the buyer slides in the price. Nothing is ever made up. */
 
-const lab = { display: "block", fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" };
+const lab = { display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: C.inkSoft, marginBottom: 4, textTransform: "uppercase" };
 const field = { width: "100%", boxSizing: "border-box", minHeight: 48, padding: "8px 12px", border: `1.5px solid ${C.line}`, background: C.paper, fontSize: 15, color: C.ink };
 const note = (tone, text) => (
   <div style={{ background: tone === "warn" ? C.amberBg : C.neutralTint, color: tone === "warn" ? C.amberDark : C.ink, padding: "10px 12px", fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>{text}</div>
@@ -40,8 +40,9 @@ export function AddFromLink({ initial = "", onAdd, onCancel, onByHand }) {
 
   const go = (raw = text) => {
     const r = readPaste(raw);
-    if (r.kind === "empty") { setState({ step: "error", message: "Paste a link or a VIN first." }); return; }
-    if (r.kind === "bad-vin") { setState({ step: "error", message: r.reason }); return; }
+    const fail = (message) => { setState({ step: "error", message }); setTimeout(() => document.getElementById("link-paste")?.focus(), 0); };
+    if (r.kind === "empty") { fail("Paste a link or a VIN first."); return; }
+    if (r.kind === "bad-vin") { fail(r.reason); return; }
     if (r.kind === "no-vin") { setState({ step: "ask-vin", source: r.source, guess: r.guess }); track("car_link_no_vin", { source: r.source }); return; }
     lookup(r.vin, r.source);
   };
@@ -50,6 +51,8 @@ export function AddFromLink({ initial = "", onAdd, onCancel, onByHand }) {
      straight away, once. */
   useEffect(() => {
     if (initial && !ran.current) { ran.current = true; go(initial); }
+    /* Opened by a tap: the button that opened it is gone, so focus the box. */
+    else if (!initial) document.getElementById("link-paste")?.focus();
   }, [initial]);
 
   const save = (car) => { onAdd(car); track("car_link_saved", { source: state.source || null, kind: state.step }); };
@@ -57,7 +60,7 @@ export function AddFromLink({ initial = "", onAdd, onCancel, onByHand }) {
 
   return (
     <div style={{ border: `1px solid ${C.accent}`, background: C.card, padding: 14, marginBottom: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-      <Kicker color={C.accentText} style={{ letterSpacing: "0.12em" }}>ADD A CAR FROM ANY SITE</Kicker>
+      <Kicker color={C.accentText} style={{ letterSpacing: "0.08em" }}>ADD A CAR FROM ANY SITE</Kicker>
 
       {["paste", "error", "looking"].includes(state.step) && (
         <>
@@ -70,9 +73,11 @@ export function AddFromLink({ initial = "", onAdd, onCancel, onByHand }) {
             onKeyDown={(e) => e.key === "Enter" && state.step !== "looking" && go()}
             placeholder="https://… or 1HGCM82633A004352"
             inputMode="url" autoComplete="off" autoCapitalize="off" spellCheck={false}
+            aria-invalid={state.step === "error"}
+            aria-describedby={state.step === "error" ? "link-paste-error" : undefined}
             style={{ ...field, fontFamily: mono, fontSize: 14 }}
           />
-          {state.step === "error" && note("warn", state.message)}
+          {state.step === "error" && <FieldError id="link-paste-error">{state.message}</FieldError>}
           <PrimaryBtn onClick={() => state.step !== "looking" && go()} height={50}>{state.step === "looking" ? "LOOKING IT UP…" : "FIND THIS CAR"}</PrimaryBtn>
         </>
       )}
@@ -83,9 +88,11 @@ export function AddFromLink({ initial = "", onAdd, onCancel, onByHand }) {
           <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5 }}>Open the listing and copy the VIN. It's 17 characters, usually with the specs or near the price.</div>
           <label htmlFor="link-vin" style={lab}>VIN</label>
           <input id="link-vin" value={vin} onChange={(e) => setVin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 17))}
-            placeholder="17 characters" autoComplete="off" style={{ ...field, fontFamily: mono, letterSpacing: "0.04em" }} />
-          <PrimaryBtn onClick={() => { const v = extractVin(vin); if (v) lookup(v, state.source); else setState({ ...state, bad: true }); }} height={50}>FIND THIS CAR</PrimaryBtn>
-          {state.bad && note("warn", "That VIN doesn't check out. Compare it with the listing, character by character.")}
+            placeholder="17 characters" autoComplete="off"
+            aria-invalid={Boolean(state.bad)} aria-describedby={state.bad ? "link-vin-error" : undefined}
+            style={{ ...field, fontFamily: mono, letterSpacing: "0.04em" }} />
+          {state.bad && <FieldError id="link-vin-error">That VIN doesn't check out. Compare it with the listing, character by character.</FieldError>}
+          <PrimaryBtn onClick={() => { const v = extractVin(vin); if (v) lookup(v, state.source); else { setState({ ...state, bad: true }); document.getElementById("link-vin")?.focus(); } }} height={50}>FIND THIS CAR</PrimaryBtn>
           <GhostBtn onClick={onByHand}>No VIN? Add it by hand</GhostBtn>
         </>
       )}

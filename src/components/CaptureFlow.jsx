@@ -11,6 +11,14 @@ const LEVERAGE_LO = 2174;
 
 export function CaptureFlow({ onSeeDecode, onManual, pace = 650 }) {
   const [phase, setPhase] = useState("capture");
+  /* Each phase replaces the last in place; move focus to its heading so
+     keyboard and screen reader users follow along. */
+  const firstPhase = useRef(true);
+  useEffect(() => {
+    if (firstPhase.current) { firstPhase.current = false; return; }
+    const h = document.getElementById("ds-main")?.querySelector("h1");
+    if (h) { h.setAttribute("tabindex", "-1"); h.focus(); }
+  }, [phase]);
   const [scan, setScan] = useState(-1);
   const [num, setNum] = useState(0);
   const [countDone, setCountDone] = useState(false);
@@ -99,9 +107,10 @@ export function CaptureFlow({ onSeeDecode, onManual, pace = 650 }) {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px", gap: 14, minHeight: 0, overflowY: "auto" }}>
+      <h1 className="ds-sr">Your quote, decoded</h1>
       <Kicker>DECODED · 10 LINES · 14 COMPS · 42 SEC</Kicker>
       <div style={{ background: C.greenBg, padding: "26px 16px", textAlign: "center" }}>
-        <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: "0.12em", color: C.green, fontWeight: 700 }}>YOUR LEVERAGE</div>
+        <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: "0.08em", color: C.green, fontWeight: 700 }}>YOUR LEVERAGE</div>
         <div style={{ fontFamily: mono, fontSize: 42, fontWeight: 800, color: C.green, margin: "6px 0 2px" }}>{fmt(num)}</div>
         {countDone && <div style={{ fontFamily: mono, fontSize: 15, fontWeight: 700, color: C.green }}>and up to $3,761</div>}
         <div style={{ fontSize: 12.5, color: C.ink, marginTop: 10 }}>found on their sheet, in their math, at their asking price</div>

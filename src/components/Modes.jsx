@@ -47,7 +47,7 @@ export function ModeSwitch({ mode, setMode, onOpen, onOutcome }) {
       <button onClick={() => setMode(key)} style={{ display: "block", width: "100%", textAlign: "left", border: `1.5px solid ${active ? C.accent : C.line}`, background: active ? C.accentTint : C.card, padding: 16, cursor: "pointer", marginBottom: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontFamily: heading, fontWeight: 600, fontSize: 22, color: C.ink }}>{title}</span>
-          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: active ? C.green : C.inkSoft, fontWeight: 700 }}>{active ? "● ACTIVE" : "OFF"}</span>
+          <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: active ? C.green : C.inkSoft, fontWeight: 700 }}>{active ? "● ACTIVE" : "OFF"}</span>
         </div>
         <div style={{ fontSize: 13, color: C.inkSoft, lineHeight: 1.5, marginTop: 4 }}>{desc}</div>
       </button>
@@ -67,7 +67,7 @@ export function ModeSwitch({ mode, setMode, onOpen, onOutcome }) {
               <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: C.ink }}>Switch automatically</span>
               <span style={{ display: "block", fontSize: 12, color: C.inkSoft, marginTop: 2 }}>Table Mode turns on when you arrive at a saved dealer's address — and off when you leave.</span>
             </span>
-            <span style={{ fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", padding: "6px 10px", border: `1px solid ${auto ? C.green : C.dash}`, background: auto ? C.greenBg : C.card, color: auto ? C.green : C.inkSoft }}>{auto ? "ON" : "OFF"}</span>
+            <span style={{ fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", padding: "6px 10px", border: `1px solid ${auto ? C.green : C.dash}`, background: auto ? C.greenBg : C.card, color: auto ? C.green : C.inkSoft }}>{auto ? "ON" : "OFF"}</span>
           </button>
           <div style={{ fontSize: 11.5, color: C.inkSoft, borderTop: `1px dashed ${C.line}`, marginTop: 10, paddingTop: 8 }}>
             Location is used on-device, only for this switch. Never shared, never stored.
@@ -108,7 +108,7 @@ export function PrepMode({ deal, median, onTable }) {
         </div>
         <div style={{ background: C.greenBg, padding: "12px 14px", marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.12em", color: C.green, fontWeight: 700 }}>YOUR LEVERAGE, DECODED</span>
+            <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.green, fontWeight: 700 }}>YOUR LEVERAGE, DECODED</span>
             <span style={{ fontFamily: mono, fontSize: 15, fontWeight: 800, color: C.green }}>
               {over > 0 ? `${fmt(n.leverage)}–${fmt(n.leverage + over)}` : fmt(n.leverage)}
             </span>
@@ -128,7 +128,7 @@ export function PrepMode({ deal, median, onTable }) {
           </button>
         ))}
         <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, marginTop: 16 }}>
-          <Kicker style={{ letterSpacing: "0.12em", marginBottom: 8 }}>YOUR NUMBERS — PUT THEM ON PAPER</Kicker>
+          <Kicker style={{ letterSpacing: "0.08em", marginBottom: 8 }}>YOUR NUMBERS — PUT THEM ON PAPER</Kicker>
           {[
             ["Opening counter", fmt(n.open), C.ink],
             ["Target price", fmt(n.target), C.ink],
@@ -145,7 +145,7 @@ export function PrepMode({ deal, median, onTable }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, border: `1px dashed ${C.dash}`, padding: 12, color: C.inkSoft }}>
           <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700 }}>Practice tonight — role-play the finance manager</span>
-          <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: C.neutralTint, padding: "3px 7px" }}>COMING SOON</span>
+          <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", background: C.neutralTint, padding: "3px 7px" }}>COMING SOON</span>
         </div>
       </div>
       <div style={{ borderTop: `1px solid ${C.line}`, background: C.paper, padding: "10px 16px" }}>
@@ -177,7 +177,7 @@ export function TableMode({ deal, median, onFullDecode }) {
 
   const stat = (label, value, color) => (
     <div style={{ flex: 1, padding: "10px 6px", textAlign: "center" }}>
-      <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: color || C.inkSoft }}>{label}</div>
+      <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: color || C.inkSoft }}>{label}</div>
       <div style={{ fontFamily: mono, fontSize: 17, fontWeight: 800, color: color || C.ink }}>{value}</div>
     </div>
   );
@@ -192,7 +192,7 @@ export function TableMode({ deal, median, onFullDecode }) {
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
           <Kicker>TAP EACH ONE THEY CONCEDE</Kicker>
-          <span style={{ fontFamily: mono, fontSize: 10, color: C.inkSoft }}>{fmt(Math.max(0, total - wonTot))} LEFT</span>
+          <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft }}>{fmt(Math.max(0, total - wonTot))} LEFT</span>
         </div>
         <div style={{ height: 4, background: C.line, marginBottom: 6 }}>
           <div style={{ width: `${Math.min(100, Math.round((wonTot / total) * 100))}%`, height: 4, background: C.green }} />
@@ -233,7 +233,7 @@ export function TableMode({ deal, median, onFullDecode }) {
       </div>
       <div style={{ borderTop: `1px solid ${C.line}`, background: C.paper, padding: "10px 16px", display: "flex", gap: 10, alignItems: "center" }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft }}>REMEMBER</div>
+          <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft }}>REMEMBER</div>
           <div style={{ fontSize: 12.5, fontWeight: 700 }}>You can leave. They can't.</div>
         </div>
         <button onClick={onFullDecode} style={{ minHeight: 48, padding: "0 18px", border: `1px solid ${C.line}`, background: C.card, fontSize: 13, fontWeight: 700, color: C.ink, cursor: "pointer" }}>Full decode</button>

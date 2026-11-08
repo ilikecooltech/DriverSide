@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { D, mono, heading, fmt } from "../theme.js";
 import { Slider } from "./ui.jsx";
+import { announce } from "../lib/announce.js";
 import { elapsed, tableRows, yourMove, scripts, SCRIPT_TABS, CHECKS, offerRange, otdTarget } from "../data/dealer.js";
 
 /* Dealer mode. Dark on purpose (see D in theme.js): at a dealer the phone
@@ -12,7 +13,7 @@ const h2 = { margin: 0, fontFamily: heading, fontWeight: 700, fontSize: 30, lett
 const h3 = { margin: 0, fontFamily: heading, fontWeight: 600, fontSize: 19, color: D.ink };
 const cardS = { border: `1px solid ${D.rule}`, background: D.card, color: D.ink };
 const btnLight = { minHeight: 48, padding: "0 16px", border: "none", background: D.ink, color: D.bg, fontSize: 15, fontWeight: 700, cursor: "pointer" };
-const btnGhost = { minHeight: 48, padding: "0 14px", border: `1px solid ${D.rule}`, background: "transparent", color: D.ink, fontSize: 14, fontWeight: 600, cursor: "pointer" };
+const btnGhost = { minHeight: 48, padding: "0 14px", border: `1px solid ${D.control}`, background: "transparent", color: D.ink, fontSize: 14, fontWeight: 600, cursor: "pointer" };
 const wrap = { flex: 1, overflowY: "auto", minHeight: 0, padding: "20px 16px 28px", display: "flex", flexDirection: "column", gap: 14, background: D.bg, color: D.ink };
 
 const Chevron = () => (
@@ -27,11 +28,11 @@ export function DealerHome({ cars = [], onStart, onPhoto, onType, starting = fal
   const [v, setV] = useState({ year: "", make: "", model: "", price: "" });
   const ready = /^(19|20)\d{2}$/.test(v.year) && v.make.trim() && v.model.trim() && Number(v.price) > 0;
   const field = { width: "100%", boxSizing: "border-box", minHeight: 48, padding: "0 12px", border: `1px solid ${D.rule}`, background: D.bg, color: D.ink, fontSize: 16 };
-  const lab = { display: "block", fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", color: D.ink2, marginBottom: 4 };
+  const lab = { display: "block", fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: D.ink2, marginBottom: 4 };
 
   return (
     <div style={wrap}>
-      <h2 style={h2}>Which car are you looking at?</h2>
+      <h1 style={h2}>Which car are you looking at?</h1>
       <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: D.ink2 }}>
         We'll pull its fair price, the words to say and your walk-away number. Everything stays on this phone.
       </p>
@@ -85,7 +86,7 @@ export function DealerHome({ cars = [], onStart, onPhoto, onType, starting = fal
       )}
 
       <div style={{ borderTop: `1px solid ${D.rule}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.12em", color: D.ink2 }}>THEY ALREADY HANDED YOU A QUOTE?</div>
+        <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: D.ink2 }}>THEY ALREADY HANDED YOU A QUOTE?</div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onPhoto} style={{ ...btnGhost, flex: 1 }}>Photograph it</button>
           <button onClick={onType} style={{ ...btnGhost, flex: 1 }}>Type it in</button>
@@ -115,14 +116,17 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
     if (!(n > 0)) return;
     onUpdate({ ...session, rounds: [...session.rounds, { amount: n, at: Date.now(), label: `Their number ${session.rounds.length + 1}` }] });
     setOffer("");
+    /* Say the result: the table and Your move change silently otherwise. */
+    const gap = session.fair ? n - session.fair : null;
+    announce(`Logged ${fmt(n)}.` + (gap === null ? "" : gap > 100 ? ` That's ${fmt(gap)} over fair.` : gap < -100 ? ` That's ${fmt(-gap)} under fair.` : " That's right at fair."));
   };
   const copy = async () => {
-    try { await navigator.clipboard.writeText(say[session.script]); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ }
+    try { await navigator.clipboard.writeText(say[session.script]); setCopied(true); announce("Script copied."); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard blocked */ }
   };
 
   const tile = (label, value, tone) => (
     <div style={{ padding: 12, background: tone === "target" ? D.raised : D.card, border: `1px solid ${tone === "target" ? D.link : D.rule}`, display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-      <span style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.08em", color: tone === "target" ? D.link : D.ink2 }}>{label}</span>
+      <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: tone === "target" ? D.link : D.ink2 }}>{label}</span>
       <span style={{ fontFamily: heading, fontWeight: 700, fontSize: 22, fontVariantNumeric: "tabular-nums", color: tone === "fair" ? D.success : D.ink }}>{value}</span>
     </div>
   );
@@ -134,7 +138,7 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
         <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em" }}>LIVE · {elapsed(session.startedAt, now)}</span>
         {c.dealer && <span style={{ fontSize: 13, color: D.ink2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.dealer}</span>}
       </div>
-      <div style={{ fontFamily: heading, fontWeight: 700, fontSize: 26, letterSpacing: "-0.015em", lineHeight: 1.1 }}>{c.title}</div>
+      <h1 style={{ margin: 0, fontFamily: heading, fontWeight: 700, fontSize: 26, letterSpacing: "-0.015em", lineHeight: 1.1, color: D.ink }}>{c.title}</h1>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
         {tile("THEIR ASK", c.price ? fmt(c.price) : "—")}
@@ -152,7 +156,7 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
       {/* The table: every number they give you */}
       <section aria-label="The table" style={{ ...cardS, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-          <h3 style={h3}>The table</h3>
+          <h2 style={h3}>The table</h2>
           <span style={{ fontSize: 12, color: D.ink2 }}>Every number they give you</span>
         </div>
         {rows.map((r, i) => (
@@ -165,19 +169,22 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
           </div>
         ))}
         <Slider dark id="dl-offer" label="Their new number" pre="$" value={offer} onChange={setOffer} min={range.min} max={range.max} step={range.step} rest={rows.length ? rows[rows.length - 1].amount : range.min} />
-        <button onClick={logOffer} style={{ ...btnLight, opacity: Number(offer) > 0 ? 1 : 0.45 }}>LOG IT</button>
+        {/* Truly disabled until there's a number, and says why (WCAG 4.1.2). */}
+        <button onClick={logOffer} disabled={!(Number(offer) > 0)} aria-describedby="dl-logit-help"
+          style={Number(offer) > 0 ? btnLight : { ...btnLight, background: "transparent", color: D.ink2, border: `1.5px dashed ${D.control}`, cursor: "not-allowed" }}>LOG IT</button>
+        <div id="dl-logit-help" style={{ fontSize: 13, color: D.ink2, marginTop: -4 }}>{Number(offer) > 0 ? "Adds their number to the table and updates your move." : "Slide or type their number first."}</div>
         <div style={{ fontSize: 14, lineHeight: 1.5 }}><b style={{ color: D.link }}>Your move:</b> {yourMove(session, zip)}</div>
       </section>
 
       {/* Say this */}
       <section aria-label="Say this" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <h3 style={h3}>Say this</h3>
+        <h2 style={h3}>Say this</h2>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {SCRIPT_TABS.map((t) => {
             const on = session.script === t.key;
             return (
               <button key={t.key} onClick={() => { onUpdate({ ...session, script: t.key }); setCopied(false); }} aria-pressed={on}
-                style={{ minHeight: 44, padding: "0 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: `1px solid ${on ? D.ink : D.rule}`, background: on ? D.ink : "transparent", color: on ? D.bg : D.ink }}>
+                style={{ minHeight: 44, padding: "0 12px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: `1px solid ${on ? D.ink : D.control}`, background: on ? D.ink : "transparent", color: on ? D.bg : D.ink }}>
                 {t.label}
               </button>
             );
@@ -193,7 +200,7 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
 
       {/* Before you sign */}
       <section aria-label="Before you sign" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <h3 style={{ ...h3, marginBottom: 4 }}>Before you sign</h3>
+        <h2 style={{ ...h3, marginBottom: 4 }}>Before you sign</h2>
         {CHECKS.map((t, k) => {
           const on = Boolean(session.checks[k]);
           return (
@@ -208,7 +215,7 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
 
       {/* Their paperwork goes through the decoder */}
       <section aria-label="Their quote" style={{ borderTop: `1px solid ${D.rule}`, paddingTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.12em", color: D.ink2 }}>THEY HANDED YOU A QUOTE?</div>
+        <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: D.ink2 }}>THEY HANDED YOU A QUOTE?</div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onPhoto} style={{ ...btnGhost, flex: 1 }}>Photograph it</button>
           <button onClick={onType} style={{ ...btnGhost, flex: 1 }}>Type it in</button>
@@ -219,7 +226,7 @@ export function DealerLive({ session, zip, apr, onUpdate, onEnd, onPhoto, onType
         <button onClick={() => setEnding(true)} style={{ ...btnGhost, marginTop: 4 }}>End this session</button>
       ) : (
         <section aria-label="How did it go?" style={{ ...cardS, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-          <h3 style={h3}>How did it go?</h3>
+          <h2 style={h3}>How did it go?</h2>
           <button onClick={() => onEnd("bought")} style={btnLight}>I bought it</button>
           <button onClick={() => onEnd("walked")} style={btnGhost}>I walked away</button>
           <button onClick={() => onEnd("later")} style={btnGhost}>Still deciding. End for now</button>

@@ -29,7 +29,9 @@ export function useAskOn() {
 export function AskButton({ onOpen, dark = false, desktop = false }) {
   return (
     <button
+      id="ds-ask-btn"
       onClick={onOpen}
+      aria-haspopup="dialog"
       aria-label="Ask a question about your deal"
       style={{
         position: "fixed", zIndex: 21,
@@ -56,21 +58,39 @@ export function AskSheet({ open, onClose, screen, setup, session, deal, car, gar
   const [error, setError] = useState("");
   const listRef = useRef(null);
   const inputRef = useRef(null);
+  const dlgRef = useRef(null);
 
   const ctx = buildAskContext({ screen, setup, session, deal, car, garageCount, hasPass });
   const shared = contextLines(ctx);
   const ideas = starters(ctx);
 
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50); }, [open]);
-  useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [messages, busy]);
+  /* The browser's own modal dialog: the page behind becomes unreachable to
+     keyboards and screen readers, Escape closes it, and on close focus goes
+     back to the Ask button (WCAG 2.4.3). */
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+    const d = dlgRef.current;
+    if (!d) return;
+    if (open && !d.open) {
+      try { d.showModal(); } catch { d.setAttribute("open", ""); }
+      setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
+    } else if (!open && d.open) {
+      d.close();
+    }
+  }, [open]);
+  const onDialogClose = () => {
+    if (open) onClose();
+    document.getElementById("ds-ask-btn")?.focus();
+  };
+  /* Keep Tab cycling inside, so it never steps out to the browser's toolbar. */
+  const wrapTab = (e) => {
+    if (e.key !== "Tab") return;
+    const f = [...dlgRef.current.querySelectorAll("button:not([disabled]), textarea, [href]")];
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }); }, [messages, busy]);
 
   const send = async (text) => {
     const q = String(text ?? draft).trim();
@@ -99,17 +119,23 @@ export function AskSheet({ open, onClose, screen, setup, session, deal, car, gar
   const showsPassLine = (t) => !hasPass && /Deal Pass has the exact words/.test(t);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Ask DriverSide" style={{ position: "fixed", inset: 0, zIndex: 40, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center" }}>
-      <div onClick={onClose} aria-hidden="true" style={{ position: "absolute", inset: 0, background: "rgba(15,24,38,0.45)" }} />
-      <div style={{
-        position: "relative", width: "100%", maxWidth: desktop ? 640 : 520, height: "86vh", maxHeight: 760,
-        background: C.paper, color: C.ink, display: "flex", flexDirection: "column", fontFamily: sans,
+    <dialog
+      ref={dlgRef}
+      className={`ds-ask${desktop ? " ds-wide" : ""}`}
+      aria-labelledby="ask-title"
+      onClose={onDialogClose}
+      onCancel={(e) => { e.preventDefault(); onClose(); }}
+      onClick={(e) => { if (e.target === dlgRef.current) onClose(); }}
+      onKeyDown={wrapTab}
+      style={{
+        background: C.paper, color: C.ink, fontFamily: sans,
         borderTop: `3px solid #16233B`, boxShadow: "0 -8px 30px rgba(15,24,38,0.25)", paddingBottom: "env(safe-area-inset-bottom)",
-      }}>
+      }}
+    >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 8px 10px 16px", borderBottom: `1px solid ${C.line}`, background: C.card }}>
           <div>
-            <div style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.12em", color: C.inkSoft }}>ASK DRIVERSIDE</div>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>On your side, on your numbers</div>
+            <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color: C.inkSoft }}>ASK DRIVERSIDE</div>
+            <h2 id="ask-title" style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>On your side, on your numbers</h2>
           </div>
           <button onClick={onClose} aria-label="Close Ask" style={{ width: 44, height: 44, border: "none", background: "none", fontSize: 26, lineHeight: 1, color: C.inkSoft, cursor: "pointer" }}>×</button>
         </div>
@@ -117,7 +143,7 @@ export function AskSheet({ open, onClose, screen, setup, session, deal, car, gar
         <div ref={listRef} style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
           {shared.length > 0 && (
             <div style={{ background: C.neutralTint, padding: "10px 12px", fontSize: 12.5, lineHeight: 1.5 }}>
-              <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft, marginBottom: 4 }}>ASK USES</div>
+              <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: C.inkSoft, marginBottom: 4 }}>ASK USES</div>
               {shared.map((l) => <div key={l}>{l}</div>)}
               <div style={{ color: C.inkSoft, marginTop: 4 }}>Never your name, contact info, the dealer's name or the VIN.</div>
             </div>
@@ -168,7 +194,6 @@ export function AskSheet({ open, onClose, screen, setup, session, deal, car, gar
             Ask can be wrong. Check the numbers before you sign. Your questions aren't saved or sold.
           </div>
         </form>
-      </div>
-    </div>
+    </dialog>
   );
 }

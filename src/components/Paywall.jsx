@@ -32,7 +32,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
       <div style={{ border: `1px solid ${C.line}`, background: C.card }}>
         {/* ── head: what it is, what it costs ── */}
         <div style={{ padding: "13px 14px", borderBottom: `1px solid ${C.line}`, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-          <b style={{ fontFamily: heading, fontWeight: 700, fontSize: 16 }}>Deal Pass — this deal, everything</b>
+          <h1 style={{ margin: 0, fontFamily: heading, fontWeight: 700, fontSize: 16 }}>Deal Pass — this deal, everything</h1>
           <span style={{ fontFamily: heading, fontWeight: 700, fontSize: 20, color: C.amber, display: "flex", alignItems: "baseline", gap: 5 }}>
             {PRICING.foundingActive && (
               <s style={{ color: C.inkSoft, fontWeight: 400, fontSize: 14 }}>{dollars(PRICING.listCents)}</s>
@@ -50,7 +50,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
         {/* ── the receipt: their own money, found free ── */}
         {receipt.rows.length > 0 && (
           <div style={{ padding: "10px 14px 4px" }}>
-            <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.07em", color: C.accentText, marginBottom: 5 }}>
+            <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.07em", color: C.accentText, marginBottom: 5 }}>
               WHAT THIS SHEET IS HIDING — FOUND SO FAR, FREE
             </div>
             {receipt.rows.map((r) => (
@@ -87,7 +87,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
         {/* Held for now — see PRICING.guaranteeActive. */}
         {PRICING.guaranteeActive && (
           <div style={{ margin: "10px 14px 0", background: C.greenBg, padding: "9px 11px", fontSize: 11.5, color: C.green, lineHeight: 1.5 }}>
-            <b style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em" }}>THE {dollars(guaranteeCents())} PROMISE</b> — if this
+            <b style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.05em" }}>THE {dollars(guaranteeCents())} PROMISE</b> — if this
             pass doesn&apos;t show you at least {dollars(guaranteeCents())} in this deal, it&apos;s free. Automatic. No forms.
           </div>
         )}
@@ -109,13 +109,13 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
           <button
             type="submit"
             disabled={Boolean(busy)}
-            style={{ minHeight: 44, padding: "0 14px", border: `1px solid ${C.ink}`, background: C.card, color: C.ink, fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: busy ? "default" : "pointer" }}
+            style={{ minHeight: 44, padding: "0 14px", border: `1px solid ${C.ink}`, background: C.card, color: C.ink, fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", fontWeight: 700, cursor: busy ? "default" : "pointer" }}
           >
             {busy === "redeem" ? "…" : "APPLY"}
           </button>
         </form>
         {error && (
-          <div role="alert" style={{ margin: "6px 14px 0", fontFamily: mono, fontSize: 10.5, letterSpacing: "0.03em", color: C.red }}>
+          <div role="alert" style={{ margin: "6px 14px 0", fontFamily: mono, fontSize: 12, letterSpacing: "0.03em", color: C.red }}>
             {error}
           </div>
         )}
@@ -129,7 +129,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
 
         {/* ── the boundary, printed where it is being tested ── */}
         <div style={{ background: C.greenBg, borderTop: `1px solid ${C.line}`, padding: "10px 14px", fontSize: 11.5, color: C.inkSoft, lineHeight: 1.55 }}>
-          <b style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.05em", color: C.green }}>FREE FOREVER</b>
+          <b style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.05em", color: C.green }}>FREE FOREVER</b>
           {FREE_FOREVER_COPY.replace(/^FREE FOREVER/, "")}
         </div>
       </div>
@@ -142,7 +142,7 @@ export function Paywall({ deal, median, context, onBuy, onRedeem, onClose, testM
       </button>
 
       {testMode && (
-        <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.dash, textAlign: "center", paddingBottom: 8 }}>
+        <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: C.inkSoft, textAlign: "center", paddingBottom: 8 }}>
           TEST MODE · NO PAYMENT PROVIDER CONFIGURED · NO CHARGE
         </div>
       )}
@@ -187,7 +187,7 @@ export function PassAnchor({ variant = "start", onOpen, receiptTotal = 0 }) {
             </>
           )}
         </span>
-        <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em", color: C.accentText, whiteSpace: "nowrap" }}>
+        <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.05em", color: C.accentText, whiteSpace: "nowrap" }}>
           {dollars(activePriceCents())} →
         </span>
       </button>
@@ -212,7 +212,7 @@ export function PassAnchor({ variant = "start", onOpen, receiptTotal = 0 }) {
       </p>
       <button
         onClick={onOpen}
-        style={{ marginTop: 10, minHeight: 44, padding: "0 14px", border: `1px solid ${C.ink}`, background: C.card, color: C.ink, fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
+        style={{ marginTop: 10, minHeight: 44, padding: "0 14px", border: `1px solid ${C.ink}`, background: C.card, color: C.ink, fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
       >
         WHAT THE PASS UNLOCKS →
       </button>
@@ -238,13 +238,13 @@ export function PassActive({ pass, giftCode, onGift, onRefund, busy, label, canG
       {(canGift || giftCode) && (
         <div style={{ borderTop: `1px dashed ${C.green}`, marginTop: 10, paddingTop: 10 }}>
           <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5 }}>
-            <b style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.05em" }}>YOU HAVE 1 PASS TO GIVE</b> — every pass
+            <b style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.05em" }}>YOU HAVE 1 PASS TO GIVE</b> — every pass
             comes with one for a friend who&apos;s also in the fight.
           </div>
           <button
             onClick={onGift}
             disabled={Boolean(busy) || Boolean(giftCode)}
-            style={{ marginTop: 8, minHeight: 44, padding: "0 14px", border: "none", background: C.greenFill, color: "#fff", fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
+            style={{ marginTop: 8, minHeight: 44, padding: "0 14px", border: "none", background: C.greenFill, color: "#fff", fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
           >
             {giftCode ? `${giftCode} · 1 USE, 30 DAYS` : busy === "gift" ? "MINTING…" : "SHARE A PASS →"}
           </button>
@@ -259,7 +259,7 @@ export function PassActive({ pass, giftCode, onGift, onRefund, busy, label, canG
           <button
             onClick={onRefund}
             disabled={Boolean(busy)}
-            style={{ marginTop: 8, minHeight: 44, padding: "0 14px", border: `1px solid ${C.inkSoft}`, background: "none", color: C.inkSoft, fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
+            style={{ marginTop: 8, minHeight: 44, padding: "0 14px", border: `1px solid ${C.inkSoft}`, background: "none", color: C.inkSoft, fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", fontWeight: 700, cursor: "pointer" }}
           >
             {busy === "refund" ? "REFUNDING…" : "CLAIM THE PROMISE — REFUND ME"}
           </button>
@@ -267,7 +267,7 @@ export function PassActive({ pass, giftCode, onGift, onRefund, busy, label, canG
       )}
 
       {pass?.refundedAt && (
-        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 10, letterSpacing: "0.04em", color: C.inkSoft }}>
+        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 12, letterSpacing: "0.04em", color: C.inkSoft }}>
           REFUNDED — THE PASS STAYS UNLOCKED FOR THIS DEAL.
         </div>
       )}

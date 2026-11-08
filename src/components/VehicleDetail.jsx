@@ -98,7 +98,7 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
 
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
-          <div style={{ fontFamily: heading, fontWeight: 600, fontSize: 26, lineHeight: 1.1 }}>{title}</div>
+          <h1 style={{ margin: 0, fontFamily: heading, fontWeight: 600, fontSize: 26, lineHeight: 1.1 }}>{title}</h1>
           <div style={{ fontSize: 13, color: C.inkSoft, marginTop: 4 }}>
             {vehicle.miles ? `${vehicle.miles.toLocaleString()} mi` : ""}
             {vehicle.bodyType ? ` · ${vehicle.bodyType}` : ""}
@@ -129,7 +129,7 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
             </div>
           )}
           {median && hi > lo && (
-            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: 10.5, color: C.inkSoft }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: 12, color: C.inkSoft }}>
               <span>{fmt(lo)}</span><span>{fmt(hi)}</span>
             </div>
           )}
@@ -197,7 +197,7 @@ export function VehicleDetail({ vehicle, listings, zip, saved, onSave, onAtDeale
             <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: C.line, border: `1px solid ${C.line}` }}>
               {specs.map(([k, v]) => (
                 <div key={k} style={{ background: C.card, padding: "9px 11px" }}>
-                  <dt style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.1em", color: C.inkSoft }}>{k}</dt>
+                  <dt style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft }}>{k}</dt>
                   <dd style={{ margin: "2px 0 0", fontSize: 13.5, fontWeight: 700, wordBreak: "break-word" }}>{v}</dd>
                 </div>
               ))}

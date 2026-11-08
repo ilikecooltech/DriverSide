@@ -19,6 +19,9 @@ export const C_HEX = {
   ink: "#16233B",
   inkSoft: "#5A6478",
   line: "#E4DFD3",
+  /* Edges of things you type into or drag: 3.5:1 on paper, 3.8:1 on
+     white (WCAG 1.4.11). Card outlines stay on the lighter line. */
+  control: "#8A8371",
   dash: "#B9B2A2",
   green: "#146A40",
   greenFill: "#1B7F4D",
@@ -50,6 +53,7 @@ export const C_DARK = {
   ink: "#EEF1F5",
   inkSoft: "#A9B4C4",
   line: "#2A3649",
+  control: "#6B7A92",
   dash: "#4A5A72",
   green: "#6FCF9F",
   greenFill: "#1B7F4D",
@@ -92,6 +96,7 @@ export const D = {
   ink: "#EEF1F5",
   ink2: "#A9B4C4",
   rule: "#2A3649",
+  control: "#6B7A92",
   link: "#8DB4DC",
   success: "#6FCF9F",
   alert: "#F08C7E",

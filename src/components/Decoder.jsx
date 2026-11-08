@@ -106,7 +106,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
         {/* sticky verdict strip */}
         <div style={{ position: "sticky", top: 0, zIndex: 5, background: C.paper, margin: "0 -16px", padding: "10px 16px 8px", borderBottom: `1px solid ${C.line}` }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <Kicker style={{ letterSpacing: "0.12em" }}>YOUR LEVERAGE</Kicker>
+            <Kicker style={{ letterSpacing: "0.08em" }}>YOUR LEVERAGE</Kicker>
             <span style={{ fontFamily: mono, fontSize: 16, fontWeight: 800, color: C.green }}>
               {levHi > levLo ? `${fmt(levLo)}–${fmt(levHi)}` : fmt(levLo)}
             </span>
@@ -161,7 +161,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
           ))}
           {deal.fairRows.map((r) => (
             <div key={r.name} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, color: C.inkSoft }}>
-              <span style={{ background: C.greenBg, color: C.green, fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", padding: "4px 8px" }}>FAIR</span>
+              <span style={{ background: C.greenBg, color: C.green, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", padding: "4px 8px" }}>FAIR</span>
               <span style={{ flex: 1, fontSize: 13 }}>{r.name}</span>
               <span style={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.ink }}>{fmt(r.amt)}</span>
             </div>
@@ -183,7 +183,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
                 ].map(([v, k]) => (
                   <div key={k} style={{ flex: 1, border: `1px solid ${C.line}`, background: C.card, padding: "10px 6px", textAlign: "center" }}>
                     <div style={{ fontFamily: mono, fontSize: 14, fontWeight: 800 }}>{v}</div>
-                    <div style={{ fontSize: 10, color: C.inkSoft, fontWeight: 700 }}>{k}</div>
+                    <div style={{ fontSize: 12, color: C.inkSoft, fontWeight: 700 }}>{k}</div>
                   </div>
                 ))}
               </div>
@@ -207,7 +207,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
                           <span style={{ fontFamily: mono, fontWeight: 800 }}>{fmt(c.price)}</span>
                           <span style={{ color: C.inkSoft, fontFamily: mono, fontSize: 11 }}>{Math.round(c.miles / 1000)}k mi · {c.days}d</span>
                         </div>
-                        {c.source && <div style={{ fontFamily: mono, fontSize: 10, color: C.inkSoft, marginTop: 2 }}>{c.source}</div>}
+                        {c.source && <div style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{c.source}</div>}
                       </div>
                     ))
                   ) : (
@@ -218,7 +218,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
                     <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: C.ink, textAlign: "left" }}>
                       {market.comps?.length || 4} named comps — dealer, miles, days on lot
                     </span>
-                    <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: C.accentTint, color: C.accentText, padding: "3px 7px" }}>DEAL PASS</span>
+                    <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", background: C.accentTint, color: C.accentText, padding: "3px 7px" }}>DEAL PASS</span>
                   </button>
                 )}
               </div>
@@ -274,7 +274,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
             <div style={{ fontSize: 12.5, color: C.inkSoft, padding: "4px 0 8px" }}>No trade on this deal.</div>
           )}
           <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: 14, marginTop: 8 }}>
-            <Kicker color={C.accentText} style={{ letterSpacing: "0.12em", marginBottom: 6 }}>THE ONE NUMBER — DON'T LET THEM SPLIT IT</Kicker>
+            <Kicker color={C.accentText} style={{ letterSpacing: "0.08em", marginBottom: 6 }}>THE ONE NUMBER — DON'T LET THEM SPLIT IT</Kicker>
             <div style={{ fontSize: 12.5, lineHeight: 1.5, color: C.inkSoft, marginBottom: 12 }}>
               Price and trade are one conversation. Enter any offer they make; only the spread matters.
             </div>
@@ -316,7 +316,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
             can see they exist and count them, you cannot read them. */}
         <div ref={refs.say} style={{ padding: "22px 0 88px" }}>
           <div style={{ background: C.ink, color: C.onInk, padding: 16 }}>
-            <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.14em", opacity: 0.7, marginBottom: 10 }}>
+            <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", opacity: 0.7, marginBottom: 10 }}>
               YOUR SCRIPTS — {market ? "LIVE MARKET NUMBERS" : "SAY IT LIKE THIS"}
             </div>
 
@@ -325,14 +325,14 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
               return (
                 <div key={sc.t} style={{ borderTop: i ? `1px solid ${C.dash}` : "none", paddingTop: i ? 14 : 0, marginTop: i ? 14 : 0, position: "relative" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontFamily: mono, fontSize: 9.5, letterSpacing: "0.1em", opacity: 0.75 }}>{sc.t.toUpperCase()}</span>
+                    <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", opacity: 0.75 }}>{sc.t.toUpperCase()}</span>
                     {i === 0 && (
                       <span style={{ fontFamily: mono, fontSize: 8.5, letterSpacing: "0.06em", background: C.onNavySuccess, color: "#0F1826", padding: "2px 6px" }}>FREE</span>
                     )}
                     {!locked && (
                       <button
                         onClick={() => copyScript(i, sc.body)}
-                        style={{ marginLeft: "auto", minHeight: 32, padding: "0 10px", border: `1px solid ${C.dash}`, background: "none", color: C.onInk, fontFamily: mono, fontSize: 9.5, letterSpacing: "0.06em", cursor: "pointer" }}
+                        style={{ marginLeft: "auto", minHeight: 32, padding: "0 10px", border: `1px solid ${C.dash}`, background: "none", color: C.onInk, fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", cursor: "pointer" }}
                       >
                         {copied === i ? "COPIED" : "COPY"}
                       </button>
@@ -356,7 +356,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
                       style={{
                         position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                         border: "none", background: "rgba(22,35,59,0.35)", color: C.onInk,
-                        fontFamily: mono, fontSize: 10.5, letterSpacing: "0.08em", fontWeight: 700, cursor: "pointer",
+                        fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", fontWeight: 700, cursor: "pointer",
                       }}
                     >
                       🔒 DEAL PASS
@@ -374,7 +374,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
 
             <button onClick={() => onGate("practice")} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, marginTop: 8, border: `1px dashed ${C.dash}`, background: "none", color: C.onInk, padding: "10px 12px", cursor: "pointer" }}>
               <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, textAlign: "left" }}>Practice this conversation</span>
-              <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", background: "rgba(255,255,255,0.14)", padding: "3px 7px" }}>
+              <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", background: "rgba(255,255,255,0.14)", padding: "3px 7px" }}>
                 {hasPass ? "COMING SOON" : "DEAL PASS"}
               </span>
             </button>
@@ -385,7 +385,7 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
       {/* persistent bottom bar */}
       <div style={{ borderTop: `1px solid ${C.line}`, background: C.paper, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12 }}>
         <div>
-          <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.1em", color: C.inkSoft }}>
+          <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.1em", color: C.inkSoft }}>
             {dm ? "YOUR TARGET, FAIR PRICE" : "YOUR LEVERAGE"}
           </div>
           <div style={{ fontFamily: mono, fontSize: 15, fontWeight: 800 }}>{dm ? fmt(dm.fair) : fmt(levLo)}</div>
