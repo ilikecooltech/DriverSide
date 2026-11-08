@@ -3,6 +3,7 @@ import { C, mono, heading, highlight } from "../theme.js";
 import { JOURNEY_DOORS, resumeSummary, statsFromShop, planSteps } from "../data/start.js";
 import { affordability } from "../data/tools.js";
 import { OtpForm } from "./OtpForm.jsx";
+import { signInCopy } from "../lib/supabase.js";
 import { PassAnchor } from "./Paywall.jsx";
 import { GhostBtn } from "./ui.jsx";
 
@@ -108,9 +109,9 @@ export function Start({ cars, archetypeName, setup, onEnter, onSignedIn, hasPass
         >
           ← Back
         </button>
-        <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 26, margin: "12px 0 6px" }}>Phone or email</h1>
+        <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 26, margin: "12px 0 6px" }}>{signInCopy().title}</h1>
         <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 16, lineHeight: 1.5 }}>
-          We&apos;ll send a one-time code. No password to invent.
+          {signInCopy().line}
         </div>
         <OtpForm onDone={(session) => onSignedIn(session)} autoFocus />
         <GhostBtn onClick={() => setSignIn(false)} style={{ marginTop: "auto" }}>

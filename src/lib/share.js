@@ -8,7 +8,9 @@
 
 import { fmt } from "../theme.js";
 
-const SITE = typeof window !== "undefined" ? window.location.origin : "https://driverside.vercel.app";
+/* Shared links always point at the real domain, even from a preview
+   deploy or the old vercel.app address. */
+export const SITE = "https://driverside.ai";
 
 export function carShareText(v, median) {
   const title = [v.year, v.make, v.model, v.trim].filter(Boolean).join(" ");

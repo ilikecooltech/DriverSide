@@ -55,9 +55,27 @@ lives in `src/lib/supabase.js` and is unit-tested.
    step; email OTP carries the product until it's set up.
    - Twilio is the usual choice: Account SID, Auth Token, and a Message
      Service SID pasted into the Supabase Phone provider form.
-5. Authentication -> URL Configuration: set Site URL to the production
-   domain and add the Vercel preview URLs to the redirect allow list
-   (needed for the magic-link path; the code path doesn't redirect).
+5. Authentication -> URL Configuration: set Site URL to
+   `https://www.driverside.ai` and add `https://www.driverside.ai/**`, `https://driverside.ai/**`,
+   `https://driverside.vercel.app/**` and the Vercel preview URLs to the
+   redirect allow list (needed for the magic-link path; the code path
+   doesn't redirect).
+6. **Email sender (required before launch).** Supabase's built-in mailer
+   only delivers to the project's own team members, a few emails an hour.
+   Everyone else gets "Email address not authorized" (the app turns that
+   into a "keep going as a guest" message). To open email sign-in to real
+   buyers, set up custom SMTP:
+   - Create a Resend account (free tier: 3,000 emails a month), add the
+     domain `driverside.ai`, and add the DNS records it gives you (SPF,
+     DKIM) at the domain's registrar.
+   - Supabase -> Authentication -> Emails -> SMTP Settings: host
+     `smtp.resend.com`, port 465, user `resend`, password = a Resend API
+     key, sender `no-reply@driverside.ai`, sender name `DriverSide`.
+   - Authentication -> Rate Limits: raise "emails per hour" from the
+     30 Supabase sets on new SMTP setups to what launch needs.
+7. **Text-message sign-in is parked.** The form asks for email only until
+   `VITE_ENABLE_SMS_LOGIN=true` is set in Vercel. Set that only after
+   step 4's SMS provider is live; the demo number works either way.
 6. The app auto-detects the session on load (`getSession`) and on
    `onAuthStateChange`, so a verified code signs the buyer in in place.
 
@@ -118,7 +136,7 @@ Going live is adding keys and a price — no app code changes:
    (`price_data`, $19 founding / $29 list, one-time). For reporting you
    may prefer a real Product with two Prices in Stripe and to pass
    `price: price_xxx` instead — a two-line change in `api/pass.js`.
-4. **Webhook.** Add an endpoint at `https://driverside.vercel.app/api/stripe-webhook`
+4. **Webhook.** Add an endpoint at `https://www.driverside.ai/api/stripe-webhook`
    subscribed to `checkout.session.completed` (and `charge.refunded` if
    you want refunds reconciled). **This handler is not written yet** — it
    is the one piece still to build, because a device-bound pass needs

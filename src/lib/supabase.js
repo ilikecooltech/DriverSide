@@ -38,6 +38,55 @@ export const authConfigured = Boolean(client);
 export const socialLoginEnabled =
   String(import.meta.env.VITE_ENABLE_SOCIAL_LOGIN || "").trim().toLowerCase() === "true";
 
+/* ── Text-message sign-in: parked until an SMS provider is set up ─────
+   Email codes carry sign-in for now. The phone path below is intact and
+   tested; flip VITE_ENABLE_SMS_LOGIN=true once Twilio Verify (or another
+   provider) is configured in Supabase -> Auth -> Phone, and the form goes
+   back to "phone or email" with no other change. The owner's demo number
+   keeps working either way, because it never sends a text. */
+export const smsLoginEnabled =
+  String(import.meta.env.VITE_ENABLE_SMS_LOGIN || "").trim().toLowerCase() === "true";
+
+/* What the one sign-in field says, by which channels are on. Pure so the
+   copy for both states is testable. */
+export function signInCopy(sms = smsLoginEnabled) {
+  return sms
+    ? {
+        title: "Phone or email",
+        line: "We'll send a one-time code. No password to invent.",
+        label: "PHONE OR EMAIL",
+        placeholder: "(555) 123-4567 or you@example.com",
+        inputType: "text",
+        autoComplete: "username",
+        changeLink: "Use a different phone or email",
+      }
+    : {
+        title: "Your email",
+        line: "We'll email you a 6-digit code. No password to invent.",
+        label: "EMAIL",
+        placeholder: "you@example.com",
+        inputType: "email",
+        autoComplete: "email",
+        changeLink: "Use a different email",
+      };
+}
+
+export const SMS_PARKED_MESSAGE = "Text-message sign-in is coming soon. Use your email for now.";
+
+/* Supabase's own errors are written for developers. These are the ones a
+   buyer can actually hit, in words they can act on. */
+export function friendlySendError({ kind, error } = {}) {
+  const m = error?.message || "";
+  const code = error?.code || "";
+  if (kind === "phone" && /provider|sms|not enabled|unsupported/i.test(m)) return SMS_PARKED_MESSAGE;
+  /* The built-in Supabase mailer only reaches the project's own team. Until
+     a real sender is set up, everyone else lands here. */
+  if (code === "email_address_not_authorized" || /not authorized/i.test(m))
+    return "We can't send sign-in emails to that address yet. Keep going as a guest for now. Everything you build stays on this phone.";
+  if (code === "over_email_send_rate_limit" || /rate|too many/i.test(m)) return "Too many tries. Wait a minute and try again.";
+  return m || "Couldn't send the code. Try again.";
+}
+
 export async function signInWithProvider(provider) {
   if (!supabase) return { simulated: true };
   return supabase.auth.signInWithOAuth({
@@ -110,11 +159,17 @@ export function classifyIdentifier(raw) {
 /* Sends the code. `identifier` is a raw string from the input; returns
    { kind, value, simulated?, error? } so the caller knows which channel
    it landed on without re-parsing. */
-export async function sendOtp(identifier) {
+export async function sendOtp(identifier, { sms = smsLoginEnabled } = {}) {
   const parsed = classifyIdentifier(identifier);
-  if (parsed.kind === "invalid") return { ...parsed, error: { message: parsed.reason } };
+  if (parsed.kind === "invalid") {
+    /* With texts parked, "enter your phone or email" would invite a
+       phone number we then refuse. Ask for the email. */
+    const reason = !sms && !String(identifier || "").trim() ? "Enter your email." : parsed.reason;
+    return { ...parsed, reason, error: { message: reason } };
+  }
   /* The owner's demo number skips the SMS entirely (see api/demo-login). */
   if (parsed.kind === "phone" && (await isDemoPhone(parsed.value))) return { ...parsed, demo: true };
+  if (parsed.kind === "phone" && !sms) return { kind: "invalid", reason: SMS_PARKED_MESSAGE, error: { message: SMS_PARKED_MESSAGE } };
   if (!supabase) return { ...parsed, simulated: true };
 
   const payload =

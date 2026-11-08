@@ -76,3 +76,52 @@ describe("classifyIdentifier", () => {
     expect(classifyIdentifier("   ").kind).toBe("invalid");
   });
 });
+
+/* Email first: texts are parked until an SMS provider is set up. The phone
+   path stays intact behind VITE_ENABLE_SMS_LOGIN, so both states are
+   pinned here. */
+import { signInCopy, friendlySendError, sendOtp, SMS_PARKED_MESSAGE } from "../../src/lib/supabase.js";
+
+describe("email-first sign-in", () => {
+  it("asks for an email when texts are off", () => {
+    const c = signInCopy(false);
+    expect(c.label).toBe("EMAIL");
+    expect(c.inputType).toBe("email");
+    expect(c.placeholder).not.toMatch(/\d{3}/);
+    expect(c.changeLink).not.toMatch(/phone/i);
+  });
+
+  it("goes back to phone or email when texts are on", () => {
+    const c = signInCopy(true);
+    expect(c.label).toBe("PHONE OR EMAIL");
+    expect(c.changeLink).toMatch(/phone/i);
+  });
+
+  it("refuses a phone number with a plain next step while texts are off", async () => {
+    globalThis.fetch = async () => ({ ok: false, json: async () => ({}) }); // not the demo number
+    const r = await sendOtp("(555) 123-4567", { sms: false });
+    expect(r.kind).toBe("invalid");
+    expect(r.error.message).toBe(SMS_PARKED_MESSAGE);
+  });
+
+  it("still lets the owner's demo number through with texts off", async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ demo: true }) });
+    const r = await sendOtp("(972) 261-4600", { sms: false });
+    expect(r.demo).toBe(true);
+  });
+
+  it("asks for an email, not a phone, on an empty field", async () => {
+    const r = await sendOtp("", { sms: false });
+    expect(r.error.message).toBe("Enter your email.");
+  });
+
+  it("explains the unauthorized-address error from the built-in mailer", () => {
+    const m = friendlySendError({ kind: "email", error: { code: "email_address_not_authorized", message: "Email address not authorized" } });
+    expect(m).toMatch(/guest/i);
+    expect(m).not.toMatch(/authorized/i);
+  });
+
+  it("turns the email rate limit into a wait message", () => {
+    expect(friendlySendError({ kind: "email", error: { code: "over_email_send_rate_limit", message: "email rate limit exceeded" } })).toMatch(/wait a minute/i);
+  });
+});
