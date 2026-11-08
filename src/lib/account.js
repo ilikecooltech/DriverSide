@@ -36,7 +36,7 @@ export function requiresAccount(capability) {
 export const GATE_COPY = {
   alerts: {
     kicker: "ALERTS NEED AN ACCOUNT",
-    headline: "We can't text a phone we don't have.",
+    headline: "We need a way to reach you.",
     line: "Price drops and the day-60 window happen while the app is closed. Give us a way to reach you and we'll watch for both.",
   },
   extensionSync: {

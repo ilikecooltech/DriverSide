@@ -25,7 +25,7 @@ const body = async () => await page.textContent("body");
 const expect = async (s, label) => {
   const t = await body();
   if (!t.includes(s)) {
-    const shown = t.slice(0, 220).replace(/\s+/g, " ").trim() || "(nothing — the app failed to render)";
+    const shown = t.slice(0, 500).replace(/\s+/g, " ").trim() || "(nothing — the app failed to render)";
     const crash = errors.length ? `\n   js errors: ${errors.slice(0, 3).join(" | ")}` : "";
     throw new Error(`${label}: missing "${s}"\n   page showed: ${shown}${crash}`);
   }
@@ -41,7 +41,7 @@ await page.goto(BASE, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* private mode */ } });
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.waitForTimeout(900); // let the async session check settle
-if (!(await body()).includes("You brought backup")) {
+if (!(await body()).includes("Where are you in the process?")) {
   const profile = btn("Profile");
   if (await profile.count()) {
     await profile.click();
@@ -52,8 +52,9 @@ if (!(await body()).includes("You brought backup")) {
 }
 
 // ═══ START — five doors, guest-first, one account line ═══
-await expect("Buying a car? Good. You brought backup.", "start hero");
-await expect("Start wherever you are.", "journey doors");
+await expect("Where are you in the process?", "start hero");
+await expect("Pick where you are.", "journey doors");
+await expect("Your plan", "plan checklist on top");
 await expect("NO ACCOUNT NEEDED", "trust chips");
 await expectNot("Continue with Google", "social login is deferred");
 await expectNot("Continue with Apple", "social login is deferred");
@@ -65,13 +66,19 @@ await expectNot("continue as guest", "no duplicate guest CTA");
 /* The account is one quiet line. Walk into it and back out — sending a
    real code needs Supabase keys the smoke run has no business using. */
 await btn(/^Sign in$/).click();
-await expect("PHONE OR EMAIL", "otp identifier step");
+/* Email first: texts are parked until an SMS provider is live. */
+await expect("Your email", "otp identifier step asks for email");
+await expectNot("PHONE OR EMAIL", "phone sign-in is parked");
 await btn(/SEND MY CODE/).click();
-await expect("Enter your phone number or email", "otp rejects an empty field");
+await expect("Enter your email.", "otp rejects an empty field");
+await page.fill("#ds-identifier", "5551234567");
+await btn(/SEND MY CODE/).click();
+await page.waitForSelector("text=Text-message sign-in is coming soon", { timeout: 5000 });
+await expect("Text-message sign-in is coming soon", "a phone number gets a plain next step");
 await btn(/Not now — just let me in/).click();
-await expect("Start wherever you are.", "back to the doors, still a guest");
+await expect("Pick where you are.", "back to the doors, still a guest");
 /* Shop is the one door that needs a goal first — it ranks against one. */
-await btn(/SHOP BY GOAL/).click();
+await btn(/Just looking/).click();
 
 // ═══ ONBOARDING — cues, routing, edit path ═══
 await expect("Five taps", "Q1 cue");
@@ -100,7 +107,7 @@ await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
 
 /* ═══ HOME LOGO — the wordmark is a real control ═══ */
 await page.getByRole("button", { name: "DriverSide — home" }).click();
-await expect("Start wherever you are.", "wordmark returns to Start");
+await expect("Where are you in the process?", "wordmark returns to Start");
 await page.getByRole("button", { name: "Shop", exact: true }).click();
 await page.waitForSelector("text=MATCHES · SORTED BY FIT", { timeout: 8000 });
 
@@ -145,26 +152,27 @@ await page.waitForTimeout(300);
 const afterTitle = await page.locator("div").filter({ hasText: /^\d{4} \w/ }).first().textContent();
 if (firstTitle === afterTitle) throw new Error("rank dropdown did not reorder the garage");
 
-// ═══ PROFILE — top nav, connections, editable setup ═══
+// ═══ PROFILE — where you shop, editable setup ═══
 await btn("Profile").click();
-await expect("WHERE YOU SHOP", "profile connections");
-await expect("DEMO IMPORT", "import honestly labeled");
+await expect("WHERE YOU SHOP", "profile where-you-shop");
+await expect("Bring cars in from any site", "paste-a-link replaces fake connections");
 await expect("We make money when you subscribe", "business model stated");
+/* The old Connect buttons imported sample cars. They must not come back. */
+await expectNot("DEMO IMPORT", "no sample imports");
+if (await page.getByRole("button", { name: "CONNECT", exact: true }).count()) throw new Error("fake Connect buttons are back");
 
-// connect a marketplace -> imports its saved cars
-await page.getByRole("button", { name: "CONNECT", exact: true }).first().click();
-await expect("✓ CONNECTED", "connection toggles on");
-await btn("Profile").click(); // close profile
-await btn(/^Garage/).click();
-await expect("AUTOTRADER", "imported cars carry their source");
-await page.screenshot({ path: "/tmp/shot-garage-imported.png" });
-
-// disconnect removes exactly what it imported
-await btn("Profile").click();
-await page.getByRole("button", { name: "✓ CONNECTED" }).first().click();
-await btn("Profile").click();
-await btn(/^Garage/).click();
-await expectNot("AUTOTRADER", "disconnect removes imported cars");
+// ═══ ADD FROM ANY SITE — a link with no VIN asks for one ═══
+await btn(/PASTE A LINK/).click();
+await page.waitForSelector("#link-paste", { timeout: 3000 });
+await expect("ADD A CAR FROM ANY SITE", "profile opens the paste box in the Garage");
+await page.fill("#link-paste", "Check out this 2021 Honda CR-V EX on Autotrader https://www.autotrader.com/cars-for-sale/vehicle/7123");
+await btn(/FIND THIS CAR/).click();
+await expect("Looks like a 2021 Honda CR-V EX from Autotrader", "reads the shared text back");
+await page.fill("#link-vin", "1HGCM82643A004352"); // one character off
+await btn(/FIND THIS CAR/).click();
+await expect("doesn't check out", "a mistyped VIN is caught before any lookup");
+await btn(/^Cancel$/).click();
+await expectNot("ADD A CAR FROM ANY SITE", "cancel closes the paste box");
 
 // editable shopping setup
 await btn("Profile").click();
@@ -173,8 +181,8 @@ await expect("EDIT YOUR SHOPPING SETUP", "setup editor opens");
 const setField = async (label, val) => {
   await page.locator(`text=${label}`).locator("xpath=following-sibling::input").fill(val);
 };
-await setField("ZIP", "78701");
-await setField("Pre-approval APR %", "5.9");
+await page.fill("#setup-zip", "78701");
+await page.getByLabel("Pre-approval rate, exact").fill("5.9");
 await btn("SAVE SETUP").click();
 await expect("78701", "ZIP saved");
 await expect("5.9%", "APR saved");
@@ -183,7 +191,9 @@ await btn("Profile").click();
 
 // ═══ AT THE DEALER — decode, gates, modes, outcomes ═══
 await btn("Dealer").click();
-await expect("Photograph it", "capture state");
+/* Dealer mode opens on "which car?"; a quote in hand goes to capture. */
+await expect("Which car are you looking at?", "dealer mode picker");
+await btn(/^Photograph it$/).click();
 await btn(/PHOTOGRAPH THE QUOTE/).click();
 await page.waitForSelector("text=and up to $3,761", { timeout: 12000 });
 await btn(/SEE THE FULL DECODE/).click();
@@ -257,13 +267,14 @@ await expect("My number is $30,934", "anchors at live median");
 await btn("+ NEW QUOTE").click();
 await btn(/Type it in/).click();
 await expect("MANUAL ENTRY · 30 SECONDS", "manual entry");
+await page.selectOption("#me-year", "2022");
+for (const [id, val] of [["make", "Toyota"], ["model", "RAV4"], ["trim", "XLE"], ["zip", "77471"]]) await page.fill(`#me-${id}`, val);
 for (const [label, val] of [
-  ["Year", "2022"], ["Make", "Toyota"], ["Model", "RAV4"], ["Trim (optional)", "XLE"],
-  ["ZIP", "77471"], ["Vehicle price", "27995"], ["Doc fee", "499"],
-  ["Title & registration", "108"], ["Dealer add-ons total", "1100"],
-  ["Sales tax on the sheet", "1750"], ["Their APR %", "9.4"], ["Term (months)", "72"],
-  ["Their trade offer ($0 if none)", "0"], ["Your loan payoff ($0 if none)", "0"],
-]) await setField(label, val);
+  ["Vehicle price", "27995"], ["Doc fee", "499"], ["Title and registration", "108"],
+  ["Dealer add-ons total", "1100"], ["Sales tax on the sheet", "1750"],
+  ["Their rate (APR)", "9.4"], ["Loan length", "72"],
+  ["Their trade offer", "0"], ["Your loan payoff", "0"],
+]) await page.getByLabel(`${label}, exact`).fill(val);
 await btn("DECODE THIS DEAL").click();
 await page.waitForSelector("text=2022 Toyota RAV4 XLE", { timeout: 3000 });
 await expect("Sales tax — matches 6.25% of price minus trade", "correct tax is FAIR");
@@ -315,8 +326,9 @@ await expect("78701", "setup persisted across reload");
 // ═══ GUEST GATE — the account ask lands at the point of need ═══
 await expect("BROWSING AS A GUEST", "guest banner in profile");
 await btn(/Price drops on garage cars/).click();
-await expect("We can't text a phone we don't have", "alerts gate asks for an account");
-await expect("PHONE OR EMAIL", "gate offers the same code door");
+await expect("We need a way to reach you", "alerts gate asks for an account");
+await expect("EMAIL", "gate offers the same code door");
+await expectNot("PHONE OR EMAIL", "gate is email-first too");
 await btn(/keep going as a guest/).click();
 await expect("BROWSING AS A GUEST", "dismissing the gate returns to the profile");
 
@@ -362,7 +374,7 @@ const realErrors = errors.filter(
 if (realFails.length) throw new Error("Failed requests: " + realFails.join(" | "));
 if (realErrors.length) throw new Error("Console errors: " + realErrors.join(" | "));
 
-console.log("SMOKE PASS — login, onboarding+reroute, shop w/ filters & save, garage rank/remove, connections import+disconnect, editable setup, decoder + 4 gates, manual entry, modes, outcomes, persistence, desktop");
+console.log("SMOKE PASS — login, onboarding+reroute, shop w/ filters & save, garage rank/remove, paste a link from any site, editable setup, decoder + 4 gates, manual entry, modes, outcomes, persistence, desktop");
 
 if (handled.length) {
   console.log("\n⚠  CONFIGURATION WARNINGS — the app degraded gracefully, but fix these:");

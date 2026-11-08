@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { C, D, mono, heading, sans } from "./theme.js";
 import { MOCK_DEAL } from "./data/decode.js";
 import { toGarageItem } from "./data/shopping.js";
-import { IMPORTS, connectorName } from "./data/connections.js";
+import { dropDemoImports } from "./data/connections.js";
 import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
@@ -30,6 +30,7 @@ import { useGasPrice } from "./lib/gas.js";
 import { useApproxLocation } from "./lib/location.js";
 import { DealerHome, DealerLive } from "./components/Dealer.jsx";
 import { newSession } from "./data/dealer.js";
+import { DealStrip } from "./components/DealStrip.jsx";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -52,6 +53,22 @@ const CONTEXT = {
   receipt: "SIGNED · THE RECEIPT", freshstart: "FRESH START · YOUR PLAN",
 };
 
+/* The share target (public/manifest.webmanifest) opens the app as
+   GET /?title=&text=&url= . Read it once, then take it off the address
+   bar so a refresh doesn't add the car again. */
+function readShared() {
+  if (typeof window === "undefined") return null;
+  try {
+    const q = new URLSearchParams(window.location.search);
+    if (!["title", "text", "url"].some((k) => q.has(k))) return null;
+    const text = [q.get("title"), q.get("text"), q.get("url")].filter(Boolean).join(" ").trim();
+    window.history.replaceState(null, "", window.location.pathname);
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
   const persisted = typeof window !== "undefined" ? loadState() : {};
 
@@ -62,11 +79,15 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(Boolean(persisted.archetypeKey));
   const [archetype, setArchetype] = useState(persisted.archetype || null);
   const [setup, setSetup] = useState({ ...DEFAULT_SETUP, ...(persisted.setup || {}) });
-  const [cars, setCars] = useState(persisted.cars || []);
+  /* dropDemoImports clears sample cars left by the retired Connect buttons. */
+  const [cars, setCars] = useState(dropDemoImports(persisted.cars));
   /* Cars the buyer already owns. Kept apart from the shopping list (no
      price, no match score) but compared against it everywhere. */
   const [owned, setOwned] = useState(persisted.owned || []);
-  const [connections, setConnections] = useState(persisted.connections || {});
+  /* A listing shared in from another app (Android share sheet, see
+     public/manifest.webmanifest): opens the Garage's paste box with it. */
+  const [sharedLink, setSharedLink] = useState(() => readShared());
+  const [linkNonce, setLinkNonce] = useState(0);
 
   const [tab, setTab] = useState("shop");
   /* Which calculator (or advice stage) Tools is showing. Lives here so
@@ -154,6 +175,15 @@ export default function App() {
     identify(user.id, { email: user.email || null, phone: user.phone || null, demo: Boolean(user.demo) });
   };
 
+  /* Arriving from the share sheet is entering the app: land in the Garage
+     with the link, as a guest if they've never been here. */
+  useEffect(() => {
+    if (!sharedLink) return;
+    setTab("garage");
+    setAuth((a) => a || "guest");
+    track("link_shared_in", {});
+  }, []);
+
   useEffect(() => {
     initAnalytics();
     getSession().then((s) => {
@@ -168,8 +198,8 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, connections, pass, watching, dealerSession });
-  }, [archetype, setup, cars, owned, connections, pass, watching, dealerSession]);
+    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, pass, watching, dealerSession });
+  }, [archetype, setup, cars, owned, pass, watching, dealerSession]);
 
   // This week's gas price near their ZIP, for the calculators and the Garage.
   // GPS once they allow it, their ZIP until then.
@@ -205,7 +235,7 @@ export default function App() {
     resetIdentity();
     clearState();
     setAuth(null); setShowProfile(false); setTab("shop");
-    setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setConnections({}); setWatching([]);
+    setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setWatching([]);
     setSetup(DEFAULT_SETUP); setDeal(null); setDealView("home"); setDealerSession(null);
     setDecodeCount(0); setPass(null);
   };
@@ -265,22 +295,8 @@ export default function App() {
     setDealView("manual");
   };
 
-  /* ---- connections ---- */
-  const connect = (id) => {
-    setConnections((c) => ({ ...c, [id]: true }));
-    const imported = (IMPORTS[id] || []).map((v) => toGarageItem(v, connectorName(id).toUpperCase()));
-    setCars((prev) => {
-      const have = new Set(prev.map((c) => c.id));
-      return [...prev, ...imported.filter((c) => !have.has(c.id))];
-    });
-    track("account_connected", { connector: id, imported: imported.length });
-  };
-  const disconnect = (id) => {
-    setConnections((c) => ({ ...c, [id]: false }));
-    const name = connectorName(id).toUpperCase();
-    setCars((prev) => prev.filter((c) => c.src !== name));
-    track("account_disconnected", { connector: id });
-  };
+  /* ---- adding from any site ---- */
+  const openPasteLink = () => { setShowProfile(false); setVehicle(null); setTab("garage"); setLinkNonce(Date.now()); track("paste_link_opened", { from: showProfile ? "profile" : tab }); };
 
   /* ---- the account ask, at the point of need ----
      Guests get the whole app. When they reach for the one or two things a
@@ -585,18 +601,28 @@ export default function App() {
 
   const dealerSessionActive = isDealerSessionLive(deal, dealView);
 
+  /* The screen's name in the top bar. Screens that sit on top of a tab
+     name themselves, so Back plus title always says where you are and
+     where you'll land. */
+  const screenTitle = showProfile ? "PROFILE"
+    : inVehicle ? "CAR DETAILS"
+    : tab === "tools" && toolsView.calc ? "CALCULATOR"
+    : CONTEXT[dv] || "";
+
   return (
     <Shell
       dark={dark}
       desktop={desktop}
       onHome={goHome}
-      backBar={showBack && (
-        <button
-          onClick={nav.goBack}
-          style={{ display: "flex", alignItems: "center", gap: 4, minHeight: 44, padding: "0 12px", border: "none", borderBottom: `1px solid ${C.line}`, background: C.card, color: C.accentText, fontSize: 14, fontWeight: 700, cursor: "pointer", textAlign: "left" }}
-        >
-          <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>‹</span> {backLabel(backTarget)}
-        </button>
+      /* Back lives in the top bar, where the wordmark sits on tab roots,
+         and names where it goes. The Start tab is the way home from there. */
+      back={showBack ? { label: backLabel(backTarget), onClick: nav.goBack } : null}
+      /* Your deal follows the buyer while a dealer session is open. */
+      strip={dealerSession && !showProfile && ["shop", "garage", "tools"].includes(tab) && (
+        <DealStrip
+          session={dealerSession}
+          onOpen={() => { setVehicle(null); setTab("dealer"); setDealView("live"); track("deal_strip_opened", { from: tab }); }}
+        />
       )}
       masthead={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -608,7 +634,7 @@ export default function App() {
           )}
           {!(tab === "dealer" && dealView === "decoder") && (
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.08em", color: dark ? D.ink2 : C.inkSoft }}>
-              {CONTEXT[dv] || ""}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
+              {screenTitle}{hasPass && tab === "dealer" ? " · DEAL PASS" : ""}
             </span>
           )}
           <button
@@ -650,8 +676,8 @@ export default function App() {
       {showProfile ? (
         <Profile
           name={userName} isGuest={auth === "guest"}
-          archetypeName={archetype?.name} setup={setup} connections={connections}
-          onConnect={connect} onDisconnect={disconnect}
+          archetypeName={archetype?.name} setup={setup}
+          onPasteLink={openPasteLink}
           onSaveSetup={(s) => { saveSetup({ ...s, aprSet: true }); track("setup_updated"); }}
           onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
           onSignOut={handleSignOut} onBack={() => setShowProfile(false)} hideBack={showBack}
@@ -717,6 +743,7 @@ export default function App() {
                 <Garage
                   cars={cars} archetypeKey={archetypeKey} archetypeName={archetype?.name}
                   onAdd={addCar} onRemove={removeCar} onRank={rankCar}
+                  sharedLink={sharedLink} onSharedLinkUsed={() => setSharedLink(null)} openLinkNonce={linkNonce} onLinkOpened={() => setLinkNonce(0)}
                   owned={owned} onAddOwned={addOwned} onRemoveOwned={removeOwned} onCarStats={setCarStats} gas={gas} loc={loc} zip={setup.zip || "77471"}
                   onShop={() => setTab("shop")}
                   onOpen={openVehicle}
@@ -906,7 +933,27 @@ function backLabel(s) {
   return names[s.tab] || "Back";
 }
 
-function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop, onHome, dark = false }) {
+function BackButton({ label, onClick, dark = false }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={`Back to ${label}`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0,
+        /* Same trick as the wordmark: padding buys the 44px hit area, the
+           negative margin keeps the bar's height. */
+        padding: "12px 8px 12px 0", margin: "-12px 0",
+        border: "none", background: "none", cursor: "pointer",
+        color: dark ? D.link : C.accentText, fontSize: 15, fontWeight: 700, fontFamily: sans,
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      }}
+    >
+      <span aria-hidden="true" style={{ fontSize: 24, lineHeight: 1, marginTop: -2 }}>‹</span> {label}
+    </button>
+  );
+}
+
+function Shell({ masthead, tabs, bottomNav, back, strip, context, children, desktop, onHome, dark = false }) {
   const bg = dark ? D.bg : C.paper, bar = dark ? D.card : C.card, rule = dark ? D.rule : C.line;
   return (
     <div className={dark ? "ds-dark" : undefined} style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
@@ -914,12 +961,12 @@ function Shell({ masthead, tabs, bottomNav, backBar, context, children, desktop,
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}
         <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
-          <Wordmark onHome={onHome} dark={dark} />
+          {back ? <BackButton label={back.label} onClick={back.onClick} dark={dark} /> : <Wordmark onHome={onHome} dark={dark} />}
           {masthead || (
             <span style={{ fontFamily: mono, fontSize: 9, letterSpacing: "0.06em", color: C.inkSoft }}>{context || ""}</span>
           )}
         </div>
-        {backBar}
+        {strip}
         {tabs}
         {children}
         {/* The nav is fixed, so the column reserves its height rather than

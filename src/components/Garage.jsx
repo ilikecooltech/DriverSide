@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { C, mono, heading, fmt, stripes } from "../theme.js";
 import { matchScore, profileFor, segmentMedian, valueLabel, toGarageItem } from "../data/shopping.js";
 import { Kicker, PrimaryBtn, GhostBtn, useDesktop, Slider } from "./ui.jsx";
 import { CarStats } from "./CarStats.jsx";
 import { AddOwnedCar } from "./AddOwnedCar.jsx";
+import { AddFromLink } from "./AddFromLink.jsx";
 import { GasLine } from "./GasLine.jsx";
 
 /* Garage — everything the buyer is considering, from any source, in one
@@ -97,8 +98,24 @@ function OwnedCard({ car, gas, onRemove, onStats }) {
 }
 
 export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onRank, onOpenDecode, onShop, onOpen, watchingIds = [], onShare,
-  owned = [], onAddOwned, onRemoveOwned, onCarStats, gas, loc, zip }) {
+  owned = [], onAddOwned, onRemoveOwned, onCarStats, gas, loc, zip, sharedLink = null, onSharedLinkUsed, openLinkNonce = 0, onLinkOpened }) {
   const [adding, setAdding] = useState(false);
+  /* A link shared in from another app (Android share sheet) opens the
+     paste box with it already filled in. */
+  const [linking, setLinking] = useState(Boolean(sharedLink));
+  useEffect(() => { if (sharedLink) setLinking(true); }, [sharedLink]);
+  /* "Paste a link" from Profile: open once, then clear the request so the
+     box doesn't reopen every time the Garage comes back. */
+  useEffect(() => { if (openLinkNonce) { setLinking(true); onLinkOpened?.(); } }, [openLinkNonce]);
+  const closeLink = () => { setLinking(false); onSharedLinkUsed?.(); };
+  const linkForm = linking && (
+    <AddFromLink
+      initial={sharedLink || ""}
+      onAdd={(c) => { onAdd(c); closeLink(); }}
+      onCancel={closeLink}
+      onByHand={() => { closeLink(); setAdding(true); }}
+    />
+  );
   const [addingOwned, setAddingOwned] = useState(false);
   const desktop = useDesktop();
   const profile = useMemo(() => profileFor(archetypeKey), [archetypeKey]);
@@ -113,21 +130,21 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
     <AddOwnedCar gas={gas} onAdd={(c) => { onAddOwned(c); setAddingOwned(false); }} onCancel={() => setAddingOwned(false)} />
   );
 
-  if (cars.length === 0 && owned.length === 0 && !adding && !addingOwned)
+  if (cars.length === 0 && owned.length === 0 && !adding && !addingOwned && !linking)
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 20px", gap: 14, minHeight: 0, overflowY: "auto" }}>
         <h1 style={{ fontFamily: heading, fontWeight: 600, fontSize: 28, lineHeight: 1.12, margin: "8px 0 0" }}>
           Every site you browse.<br />One garage. One score.
         </h1>
         <div style={{ fontSize: 14, lineHeight: 1.55, color: C.inkSoft }}>
-          Save from Shop, connect the marketplaces you already use, or add a car by hand. We normalize all of it, score it
+          Save from Shop, paste a link from any site you already use, or add a car by hand. We put it all in one place, score it
           against your <b style={{ color: C.ink }}>{archetypeName || "goal"}</b>, and watch for price drops.
         </div>
         <div style={{ border: `1px dashed ${C.dash}`, padding: "18px 16px", background: stripes }}>
           <Kicker style={{ letterSpacing: "0.1em", marginBottom: 10 }}>YOUR FIRST CAR GOES HERE</Kicker>
           {[
             ["1", "Shop by your goal — save anything that fits"],
-            ["2", "Or connect AutoTrader, CarGurus, Carvana in Profile"],
+            ["2", "Or paste a link from AutoTrader, CarGurus, Carvana, Facebook or any dealer"],
             ["3", "Rank them yourself; we price and watch them all"],
           ].map(([n, t]) => (
             <div key={n} style={{ display: "flex", gap: 12, fontSize: 13, lineHeight: 1.5, color: C.ink, marginBottom: n === "3" ? 0 : 8 }}>
@@ -137,6 +154,7 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
           ))}
         </div>
         <PrimaryBtn onClick={onShop} height={52} style={{ fontSize: 18, marginTop: "auto" }}>SHOP FOR MY GOAL →</PrimaryBtn>
+        <GhostBtn onClick={() => setLinking(true)}>Paste a link from any site</GhostBtn>
         <GhostBtn onClick={() => setAdding(true)}>Add a car by hand instead</GhostBtn>
         {onAddOwned && <GhostBtn onClick={() => setAddingOwned(true)}>I already own a car. Add it</GhostBtn>}
       </div>
@@ -176,6 +194,7 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
         </button>
       )}
 
+      {linkForm}
       {adding && <AddVehicle onAdd={(c) => { onAdd(c); setAdding(false); }} onCancel={() => setAdding(false)} />}
 
       <div style={{ display: "grid", gridTemplateColumns: desktop ? "1fr 1fr" : "1fr", gap: 12 }}>
@@ -257,8 +276,11 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
         })}
       </div>
 
-      {!adding && (
+      {!adding && !linking && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+          <button onClick={() => setLinking(true)} style={{ flexBasis: "100%", border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
+            + Paste a link from any site
+          </button>
           <button onClick={onShop} style={{ flex: 1, border: `1px dashed ${C.dash}`, background: "none", minHeight: 48, fontSize: 13, fontWeight: 700, color: C.accentText, cursor: "pointer" }}>
             + Shop for more
           </button>
