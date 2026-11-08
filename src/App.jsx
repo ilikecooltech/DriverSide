@@ -464,8 +464,9 @@ export default function App() {
     setDecodeCount((n) => n + 1);
     setDealView("decoder");
     track(isRedecode ? "quote_redecoded" : "quote_decoded", {
+      /* No vehicle string: on a typed quote it is the buyer's own input. */
       source: d === MOCK_DEAL ? "demo" : "manual",
-      vehicle: d.vehicle, leverage: d.junkTotal + d.taxError,
+      leverage: d.junkTotal + d.taxError,
       has_trade: d.trade.offer > 0, underwater: d.negEq > 0,
     });
   };
@@ -475,7 +476,7 @@ export default function App() {
   };
   const goOutcome = (k) => {
     setDealView(k);
-    track(k === "walked" ? "outcome_walked" : "outcome_signed", { vehicle: deal?.vehicle });
+    track(k === "walked" ? "outcome_walked" : "outcome_signed");
   };
 
   const leverage = deal ? deal.junkTotal + deal.taxError : null;
