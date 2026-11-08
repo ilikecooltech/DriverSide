@@ -42,6 +42,8 @@ describe("gate copy", () => {
 
   it("falls back rather than rendering nothing", () => {
     expect(gateCopy("no-such-capability")).toBe(GATE_COPY.default);
-    expect(gateCopy("alerts").headline).toMatch(/text a phone/i);
+    expect(gateCopy("alerts").headline).toMatch(/reach you/i);
+    // Email-first: the alerts ask must not promise or imply a text message.
+    expect(gateCopy("alerts").headline).not.toMatch(/text/i);
   });
 });
