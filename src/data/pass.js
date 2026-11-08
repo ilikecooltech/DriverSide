@@ -138,7 +138,8 @@ export function valueReceipt(deal, median) {
    the bundle. Validation belongs to the server (api/pass.js); this half
    is only the shape and the batch rules.
 
-   Format: BATCH-DDRRRR-CCCC (batch, issue-day + random, 4-char check).
+   Format: BATCH-DDRRRRRRR-CCCC (batch, issue-day + 7 random, 4-char check).
+   Codes from before Nov 2026 have 4 random characters and still work.
    GIFT codes carry the
    chain depth so a gifted pass cannot mint an unlimited tree. */
 
@@ -156,7 +157,7 @@ export function batchOf(code) {
 }
 
 export function isWellFormedCode(code) {
-  return /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-[A-Z0-9]{6}-[A-Z0-9]{4}$/.test(
+  return /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-([A-Z0-9]{6}|[A-Z0-9]{9})-[A-Z0-9]{4}$/.test(
     String(code || "").trim().toUpperCase()
   );
 }

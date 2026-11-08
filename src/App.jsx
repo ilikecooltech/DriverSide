@@ -31,6 +31,7 @@ import { useApproxLocation } from "./lib/location.js";
 import { DealerHome, DealerLive } from "./components/Dealer.jsx";
 import { newSession } from "./data/dealer.js";
 import { DealStrip } from "./components/DealStrip.jsx";
+import { AskButton, AskSheet, useAskOn } from "./components/AskSheet.jsx";
 
 /* Three stages, in the order a buyer actually moves through them:
      Shop    — match and value against their stated goal
@@ -104,6 +105,9 @@ export default function App() {
      it, so closing it puts the buyer back on the same card with the same
      filters. `shopListings` is the result set it prices against. */
   const [vehicle, setVehicle] = useState(null);
+  /* Ask: on only when the server has a key (see server/ask.mjs). */
+  const askOn = useAskOn();
+  const [askOpen, setAskOpen] = useState(false);
   const [shopListings, setShopListings] = useState([]);
   const [atVehicle, setAtVehicle] = useState(null);
   const vehicleCache = useRef({});
@@ -672,6 +676,24 @@ export default function App() {
           }}
         />
       }
+      ask={askOn && (
+        <>
+          {!askOpen && <AskButton dark={dark} desktop={desktop} onOpen={() => { setAskOpen(true); track("ask_opened", { screen: showProfile ? "profile" : tab }); }} />}
+          <AskSheet
+            open={askOpen}
+            onClose={() => setAskOpen(false)}
+            desktop={desktop}
+            screen={showProfile ? "profile" : tab}
+            setup={setup}
+            session={dealerSession}
+            deal={tab === "dealer" ? deal : null}
+            car={vehicle}
+            garageCount={cars.length}
+            hasPass={hasPass}
+            onSeePass={() => { setAskOpen(false); openPassFrom("ask", { backTab: tab }); }}
+          />
+        </>
+      )}
     >
       {showProfile ? (
         <Profile
@@ -953,11 +975,11 @@ function BackButton({ label, onClick, dark = false }) {
   );
 }
 
-function Shell({ masthead, tabs, bottomNav, back, strip, context, children, desktop, onHome, dark = false }) {
+function Shell({ masthead, tabs, bottomNav, back, strip, ask, context, children, desktop, onHome, dark = false }) {
   const bg = dark ? D.bg : C.paper, bar = dark ? D.card : C.card, rule = dark ? D.rule : C.line;
   return (
     <div className={dark ? "ds-dark" : undefined} style={{ background: desktop ? (dark ? "#0A111C" : "#EFEEE8") : bg, height: "100vh", display: "flex", justifyContent: "center", fontFamily: sans, color: dark ? D.ink : C.ink }}>
-      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: bg, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${rule}`, borderRight: `1px solid ${rule}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom))` : 0 }}>
+      <div style={{ width: "100%", maxWidth: desktop ? 760 : 520, background: bg, display: "flex", flexDirection: "column", minHeight: 0, borderLeft: `1px solid ${rule}`, borderRight: `1px solid ${rule}`, boxShadow: desktop ? "0 0 24px rgba(22,35,59,0.06)" : "none", paddingBottom: bottomNav ? `calc(${NAV_HEIGHT + (ask ? 64 : 0)}px + env(safe-area-inset-bottom))` : 0 }}>
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}
         <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
@@ -972,6 +994,7 @@ function Shell({ masthead, tabs, bottomNav, back, strip, context, children, desk
         {/* The nav is fixed, so the column reserves its height rather than
             letting content scroll underneath it. */}
         {bottomNav}
+        {ask}
       </div>
     </div>
   );

@@ -152,6 +152,9 @@ await page.waitForTimeout(300);
 const afterTitle = await page.locator("div").filter({ hasText: /^\d{4} \w/ }).first().textContent();
 if (firstTitle === afterTitle) throw new Error("rank dropdown did not reorder the garage");
 
+// ═══ ASK — hidden when the server has no Anthropic key ═══
+if (await page.getByRole("button", { name: /Ask a question/ }).count()) throw new Error("Ask button shows with Ask switched off");
+
 // ═══ PROFILE — where you shop, editable setup ═══
 await btn("Profile").click();
 await expect("WHERE YOU SHOP", "profile where-you-shop");

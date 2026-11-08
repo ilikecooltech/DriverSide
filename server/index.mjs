@@ -6,6 +6,7 @@
 
 import express from "express";
 import { lookupListing } from "./lookup.mjs";
+import { answerQuestion, askStatus } from "./ask.mjs";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -115,6 +116,12 @@ app.post("/api/demo-login", express.json(), (req, res) => demoLoginHandler(req, 
 // Gas price by ZIP (EIA) and stats for any car (EPA, NHTSA). Same handlers as Vercel.
 app.get("/api/gas", (req, res) => gasHandler(req, res));
 /* One car by VIN — parity with api/listing.js. */
+/* Ask — parity with api/ask.js. */
+app.get("/api/ask", (req, res) => res.set("Cache-Control", "no-store").json(askStatus()));
+app.post("/api/ask", express.json({ limit: "32kb" }), async (req, res) => {
+  const out = await answerQuestion({ body: req.body || {}, ip: req.ip });
+  res.status(out.status).json(out.json);
+});
 app.get("/api/listing", async (req, res) => res.json(await lookupListing({ vin: req.query.vin, key: KEY })));
 app.get("/api/vehicle-stats", (req, res) => vehicleStatsHandler(req, res));
 

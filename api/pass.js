@@ -28,7 +28,11 @@ const BATCHES = ["FOUNDER", "CREATOR", "PARTNER", "MAKEGOOD", "GIFT"];
    reading the day out of the code instead means exactly one signature to
    verify, over 30^4 (~810k). And 2 random chars gave only 900 codes per
    batch-day, which collided inside a 40-code batch; 4 gives 810k. */
-const CODE_RE = /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-([A-Z0-9]{6})-([A-Z0-9]{4})$/;
+/* Body is the 2-char issue day plus 7 random characters. Codes minted
+   before Nov 2026 carry 4 random characters (a 6-char body) and still
+   validate; only new codes are longer. */
+const CODE_RE = /^(FOUNDER|CREATOR|PARTNER|MAKEGOOD|GIFT)-([A-Z0-9]{6}|[A-Z0-9]{9})-([A-Z0-9]{4})$/;
+const RANDOM_CHARS = 7;
 const ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ2345678"; // exactly 30, no look-alikes
 const RADIX = 30;
 const DAY_CYCLE = RADIX * RADIX; // 900 days, far beyond any batch window
@@ -46,6 +50,21 @@ function secret() {
 }
 
 const b32 = (buf, n) => [...buf].map((b) => ALPHA[b % ALPHA.length]).join("").slice(0, n);
+
+/* Uniform random characters. Bytes at or above 240 are thrown away so
+   every letter is equally likely (256 isn't a multiple of 30, and a plain
+   modulo favored the first 16 letters). 7 characters is 30^7, about 22
+   billion bodies per day: a 500-code batch collides about once in
+   180,000 batches instead of about one in four. */
+function randomChars(n) {
+  let out = "";
+  while (out.length < n) {
+    for (const b of crypto.randomBytes(n * 2)) {
+      if (b < 240 && out.length < n) out += ALPHA[b % 30];
+    }
+  }
+  return out;
+}
 
 function checkFor(batch, body) {
   const h = crypto.createHmac("sha256", secret()).update(`${batch}:${body}`).digest();
@@ -72,7 +91,7 @@ const dayNow = () => Math.floor(Date.now() / 86400000);
 /* Mint a code. Server-only — there is no client path to this. */
 export function issueCode(batch, issuedDay = dayNow()) {
   if (!BATCHES.includes(batch)) throw new Error("unknown batch");
-  const body = encodeDay(issuedDay) + b32(crypto.randomBytes(8), 4);
+  const body = encodeDay(issuedDay) + randomChars(RANDOM_CHARS);
   return `${batch}-${body}-${checkFor(batch, body)}`;
 }
 
