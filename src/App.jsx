@@ -542,10 +542,11 @@ export default function App() {
 
   if (!auth)
     return (
-      /* "START", not the Shell's default "SIGN IN" label — on this screen
-         that label read as a second account CTA competing with the one
-         quiet line at the bottom. */
-      <Shell desktop={desktop} context="START">
+      /* No label at top right here. "SIGN IN" read as a second account
+         CTA competing with the quiet line at the bottom, and "START" sat
+         alone where Profile goes on every other screen, so it looked like a
+         button that did nothing. The page heading already says where you are. */
+      <Shell desktop={desktop} context="">
         <Start
           cars={cars}
           archetypeName={archetype?.name || null}
@@ -943,7 +944,15 @@ const mastBtn = { fontFamily: mono, fontSize: 12, letterSpacing: "0.08em", color
    entered the app there is nowhere to go home to, so it stays plain text. */
 function Wordmark({ onHome, dark = false }) {
   const type = { fontFamily: heading, fontWeight: 600, fontSize: 19, letterSpacing: "0.01em", color: dark ? D.ink : C.ink };
-  if (!onHome) return <span style={type}>DriverSide</span>;
+  /* Not a link on the front door (you're already home), but the same mark
+     and spacing as everywhere else. */
+  if (!onHome)
+    return (
+      <span style={{ ...type, display: "inline-flex", alignItems: "center", gap: 7 }}>
+        <span aria-hidden="true" style={{ width: 7, height: 7, background: C.accent, display: "block", flexShrink: 0 }} />
+        DriverSide
+      </span>
+    );
   return (
     <button
       onClick={onHome}
@@ -1011,7 +1020,9 @@ function Shell({ masthead, tabs, bottomNav, back, strip, ask, context, children,
         {/* Card surface + hairline, matching the bottom bar at the other
             end of the screen. */}
         <header style={{ display: "contents" }}>
-          <div style={{ padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
+          {/* Same height on every screen (the Profile button sets it), so
+              the bar doesn't jump when there's nothing on the right. */}
+          <div style={{ minHeight: 71, boxSizing: "border-box", padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: bar, borderBottom: `1px solid ${rule}` }}>
             {back ? <BackButton label={back.label} onClick={back.onClick} dark={dark} /> : <Wordmark onHome={onHome} dark={dark} />}
             {masthead || (
               <span style={{ fontFamily: mono, fontSize: 12, letterSpacing: "0.06em", color: dark ? D.ink2 : C.inkSoft }}>{context || ""}</span>
