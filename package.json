@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node smoke.mjs && node a11y.mjs"
+    "test:e2e": "node smoke.mjs && node a11y.mjs",
+    "test:sync": "node sync.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

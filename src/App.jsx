@@ -6,6 +6,7 @@ import { dropDemoImports } from "./data/connections.js";
 import { loadState, saveState, clearState } from "./lib/storage.js";
 import { initAnalytics, track, identify, resetIdentity } from "./lib/analytics.js";
 import { getSession, signOut, onAuthChange, authConfigured } from "./lib/supabase.js";
+import { loadCloud, saveCloud, mergeStates, makeSaver, claimPasses, hasGuestData, exportMyData, deleteMyAccount, signOutEverywhere } from "./lib/cloud.js";
 import { useDesktop, PrimaryBtn } from "./components/ui.jsx";
 import { Start } from "./components/Start.jsx";
 import { BottomNav, NAV_HEIGHT, isDealerSessionLive } from "./components/BottomNav.jsx";
@@ -78,6 +79,13 @@ export default function App() {
   const [auth, setAuth] = useState(null);
   const [userName, setUserName] = useState(null);
   const [booted, setBooted] = useState(false);
+  /* The signed-in account, and whether its data is in step with the cloud
+     (see lib/cloud.js). Guests and demo sign-ins stay "off". */
+  const [account, setAccount] = useState(null);
+  const [sync, setSync] = useState({ status: "off" });
+  const syncUser = useRef(null);
+  const cloudReady = useRef(false);
+  const saverRef = useRef(null);
 
   const [onboarded, setOnboarded] = useState(Boolean(persisted.archetypeKey));
   const [archetype, setArchetype] = useState(persisted.archetype || null);
@@ -177,8 +185,54 @@ export default function App() {
           ? user.phone.replace(/\D/g, "").slice(-4)
           : null;
     setUserName(label);
-    /* Demo sign-ins are tagged so they never count as real accounts. */
-    identify(user.id, { email: user.email || null, phone: user.phone || null, demo: Boolean(user.demo) });
+    setAccount({ id: user.id, email: user.email || null, phone: user.phone || null, demo: Boolean(user.demo) });
+    /* Analytics get the account's random id only, never an email or
+       phone number. Demo sign-ins are tagged so they never count. */
+    identify(user.id, { demo: Boolean(user.demo) });
+    startCloud(user);
+  };
+
+  /* Bring the account's saved garage and setup onto this phone, join in
+     anything built here as a guest, and from then on keep the two in
+     step. Runs once per account per visit. */
+  const startCloud = async (user) => {
+    if (!authConfigured || user.demo || !user.id || syncUser.current === user.id) return;
+    syncUser.current = user.id;
+    cloudReady.current = false;
+    setSync({ status: "loading" });
+    const r = await loadCloud(user.id);
+    if (syncUser.current !== user.id) return; // signed out meanwhile
+    if (!r.ok) {
+      syncUser.current = null;
+      setSync({ status: "error" });
+      return;
+    }
+    const local = loadState();
+    const merged = mergeStates(local, r.state);
+    setArchetype(merged.archetype);
+    setOnboarded(Boolean(merged.archetypeKey));
+    setSetup({ ...DEFAULT_SETUP, ...merged.setup });
+    setCars(dropDemoImports(merged.cars));
+    setOwned(merged.owned);
+    setWatching(merged.watching);
+    setDealerSession(merged.dealerSession);
+    if (merged.pass) setPass(merged.pass);
+    saverRef.current = makeSaver((st) => saveCloud(user.id, st));
+    cloudReady.current = true;
+    const saved = await saveCloud(user.id, merged);
+    setSync(saved.ok ? { status: "saved", at: Date.now() } : { status: "error" });
+    claimPasses();
+    if (hasGuestData(local) && hasGuestData(r.state)) track("account_merged", {});
+  };
+
+  /* Forget the account on this phone: stop syncing, clear what's here. */
+  const stopCloud = () => {
+    saverRef.current?.cancel?.();
+    saverRef.current = null;
+    syncUser.current = null;
+    cloudReady.current = false;
+    setAccount(null);
+    setSync({ status: "off" });
   };
 
   /* Arriving from the share sheet is entering the app: land in the Garage
@@ -204,7 +258,14 @@ export default function App() {
 
   // Everything the buyer builds survives a refresh.
   useEffect(() => {
-    saveState({ archetype, archetypeKey: archetype?.key || null, setup, cars, owned, pass, watching, dealerSession });
+    const snapshot = { archetype, archetypeKey: archetype?.key || null, setup, cars, owned, pass, watching, dealerSession };
+    saveState(snapshot);
+    /* Signed in: the account gets the same copy, a beat later. Never
+       before the account's own data has been merged in. */
+    if (cloudReady.current && saverRef.current) {
+      setSync((s) => (s.status === "saving" ? s : { ...s, status: "saving" }));
+      saverRef.current(snapshot).then((r) => r && setSync(r.ok ? { status: "saved", at: Date.now() } : { status: "error" }));
+    }
   }, [archetype, setup, cars, owned, pass, watching, dealerSession]);
 
   // This week's gas price near their ZIP, for the calculators and the Garage.
@@ -237,6 +298,7 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
+    stopCloud();
     await signOut();
     resetIdentity();
     clearState();
@@ -244,6 +306,37 @@ export default function App() {
     setOnboarded(false); setArchetype(null); setCars([]); setOwned([]); setWatching([]);
     setSetup(DEFAULT_SETUP); setDeal(null); setDealView("home"); setDealerSession(null);
     setDecodeCount(0); setPass(null);
+  };
+
+  /* Account controls (Profile). */
+  const handleSignOutEverywhere = async () => {
+    await signOutEverywhere();
+    await handleSignOut();
+    announce("Signed out on every device.");
+  };
+  const handleDeleteAccount = async () => {
+    const r = await deleteMyAccount();
+    if (!r.ok) return { ok: false };
+    track("account_deleted", {});
+    await handleSignOut();
+    announce("Your account and everything in it is deleted.");
+    return { ok: true };
+  };
+  const handleDownload = async () => {
+    const data = await exportMyData({ userId: account?.id, email: account?.email });
+    /* Signed in without the cloud (or before the setup ran): give them
+       what's on this phone, so the button always does something. */
+    if (!data.saved) data.saved = loadState();
+    try {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = "driverside-my-data.json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      announce("Your data is downloading.");
+    } catch {
+      announce("Couldn't start the download on this device.");
+    }
   };
 
   /* ---- garage ---- */
@@ -731,6 +824,8 @@ export default function App() {
           onSaveSetup={(s) => { saveSetup({ ...s, aprSet: true }); track("setup_updated"); }}
           onEditGoal={() => { setShowProfile(false); setEditingGoal(true); }}
           onSignOut={handleSignOut} onBack={() => setShowProfile(false)} hideBack={showBack}
+          account={account} sync={sync} cloudOn={authConfigured}
+          onSignOutEverywhere={handleSignOutEverywhere} onDeleteAccount={handleDeleteAccount} onDownload={handleDownload}
           onRequireAccount={requireAccount}
         />
       ) : (

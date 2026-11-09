@@ -85,6 +85,7 @@ function SetupEditor({ setup, onSave, onCancel }) {
 export function Profile({
   name, isGuest, archetypeName, setup, onPasteLink,
   onSaveSetup, onEditGoal, onSignOut, onBack, hideBack = false, onRequireAccount,
+  account = null, sync = { status: "off" }, cloudOn = false, onSignOutEverywhere, onDeleteAccount, onDownload,
 }) {
   const [editing, setEditing] = useState(false);
   const [al, setAl] = useState({ 0: true, 1: true, 2: false });
@@ -186,9 +187,84 @@ export function Profile({
         <b>Our only promise that matters:</b> your data is never sold, never shown to a dealer, and deleted the day you
         ask. We make money when you subscribe — not when you buy a car.
       </div>
-      <button onClick={onSignOut} style={{ width: "100%", minHeight: 44, border: "none", background: "none", color: C.red, fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
-        Sign out
-      </button>
+      {isGuest ? (
+        <button onClick={onSignOut} style={{ width: "100%", minHeight: 44, border: "none", background: "none", color: C.red, fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
+          Sign out
+        </button>
+      ) : (
+        <AccountPanel
+          account={account} sync={sync} cloudOn={cloudOn}
+          onSignOut={onSignOut} onSignOutEverywhere={onSignOutEverywhere}
+          onDeleteAccount={onDeleteAccount} onDownload={onDownload}
+        />
+      )}
     </div>
+  );
+}
+
+/* Your account: who you're signed in as, whether your garage is saved to
+   the account, and the controls a trust-first product owes you: take
+   your data with you, sign out everywhere, delete it all. */
+const SYNC_LINE = {
+  loading: "Bringing in your saved garage…",
+  saving: "Saving…",
+  saved: "Garage, goal and setup are saved to your account. Sign in on any phone to pick up where you left off.",
+  error: "Couldn't reach your account just now. Everything is still saved on this phone.",
+};
+
+function AccountPanel({ account, sync, cloudOn, onSignOut, onSignOutEverywhere, onDeleteAccount, onDownload }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const who = account?.email || (account?.phone ? `Phone ending ${account.phone.replace(/\D/g, "").slice(-4)}` : "Signed in");
+  const line = account?.demo
+    ? "Demo account. Everything stays on this phone."
+    : !cloudOn ? "Saved on this phone." : SYNC_LINE[sync.status] || SYNC_LINE.saved;
+  const row = { width: "100%", minHeight: 48, padding: "0 14px", border: `1px solid ${C.control}`, background: C.card, color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer", textAlign: "left" };
+  const run = (key, fn) => async () => { setBusy(key); setError(""); try { await fn?.(); } finally { setBusy(""); } };
+
+  return (
+    <section aria-labelledby="acct-h" style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+      <h2 id="acct-h" style={{ margin: 0, fontFamily: mono, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: C.inkSoft }}>Your account</h2>
+      <div style={{ border: `1px solid ${C.line}`, background: C.card, padding: "12px 14px" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, wordBreak: "break-all" }}>{who}</div>
+        <p role="status" style={{ margin: "4px 0 0", fontSize: 13, lineHeight: 1.45, color: sync.status === "error" ? C.amberDark : C.inkSoft }}>{line}</p>
+      </div>
+
+      {!account?.demo && (
+        <button onClick={run("download", onDownload)} style={row}>{busy === "download" ? "Preparing your file…" : "Download my data"}</button>
+      )}
+      <button onClick={run("out", onSignOut)} style={row}>Sign out on this phone</button>
+      {cloudOn && !account?.demo && (
+        <button onClick={run("everywhere", onSignOutEverywhere)} style={row}>{busy === "everywhere" ? "Signing out…" : "Sign out on all devices"}</button>
+      )}
+
+      {cloudOn && !account?.demo && !confirming && (
+        <button onClick={() => setConfirming(true)} style={{ ...row, color: C.red, borderColor: C.red, background: "transparent" }}>Delete my account</button>
+      )}
+      {confirming && (
+        <div role="group" aria-labelledby="del-h" style={{ border: `2px solid ${C.red}`, background: C.card, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+          <h3 id="del-h" style={{ margin: 0, fontSize: 16 }}>Delete your account for good?</h3>
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5 }}>
+            This deletes your sign-in, your garage, your goal and setup, and any cars you've added. It can't be undone.
+            Payments stay in Stripe's records for refunds and taxes, as the law requires.
+          </p>
+          {error && <p role="alert" style={{ margin: 0, color: C.red, fontSize: 13.5, fontWeight: 600 }}>{error}</p>}
+          <button
+            onClick={async () => {
+              setBusy("delete"); setError("");
+              const r = await onDeleteAccount?.();
+              setBusy("");
+              if (!r?.ok) setError("Couldn't delete it just now. Nothing was removed. Try again in a minute.");
+            }}
+            disabled={busy === "delete"}
+            style={{ ...row, background: C.red, color: "#FFFFFF", borderColor: C.red, textAlign: "center" }}
+          >
+            {busy === "delete" ? "Deleting…" : "Delete for good"}
+          </button>
+          <button autoFocus onClick={() => { setConfirming(false); setError(""); }} style={{ ...row, textAlign: "center" }}>Keep my account</button>
+        </div>
+      )}
+    </section>
   );
 }
