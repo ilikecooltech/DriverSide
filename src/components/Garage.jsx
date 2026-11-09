@@ -6,6 +6,7 @@ import { CarStats } from "./CarStats.jsx";
 import { AddOwnedCar } from "./AddOwnedCar.jsx";
 import { AddFromLink } from "./AddFromLink.jsx";
 import { GasLine } from "./GasLine.jsx";
+import { LeverageLine } from "./Leverage.jsx";
 
 /* Garage — everything the buyer is considering, from any source, in one
    ranked list. Rank is the buyer's own call (dropdown); match is ours.
@@ -233,10 +234,8 @@ export function Garage({ cars, archetypeKey, archetypeName, onAdd, onRemove, onR
                 {g.drop && (
                   <span style={{ fontFamily: mono, fontSize: 12, color: C.green, fontWeight: 700, background: C.greenBg, padding: "2px 6px" }}>{g.drop}</span>
                 )}
-                <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, marginLeft: "auto" }}>
-                  {g.days ? `${g.days} days on lot` : ""}
-                </span>
               </div>
+              <LeverageLine price={g.price} days={g.days} />
               {g.dealer && <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{g.dealer}</div>}
               <CarStats car={g} gas={gas} onStats={onCarStats} compact={!g.stats} />
 

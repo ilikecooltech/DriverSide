@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { C, mono, heading, fmt, pmt, reducedMotion } from "../theme.js";
 import { STEP_BOUNDS, dealerMath, buildScripts } from "../data/decode.js";
 import { Kicker, DecodeLine, StepperRow, PrimaryBtn, useDesktop } from "./ui.jsx";
+import { lotLeverage } from "../data/leverage.js";
 
 /* Deal Decoder, Direction A: sticky verdict strip + anchor nav.
    Renders ANY normalized deal (mock demo or manual entry). Market stats
@@ -138,7 +139,12 @@ export function Decoder({ deal, hasPass, onGate, onMedian, onFreshStart }) {
               </div>
             ))}
             {deal.daysOnLot && (
-              <div style={{ fontSize: 12, color: C.ink, marginTop: 8 }}>This car has sat <b>{deal.daysOnLot} days</b>. Time is on your side, not theirs.</div>
+              <div style={{ fontSize: 12, color: C.ink, marginTop: 8 }}>
+                {(() => {
+                  const l = lotLeverage({ price: deal.asking, days: deal.daysOnLot });
+                  return <>This car has sat <b>{deal.daysOnLot} days</b>{l ? <>, which has cost them about <b>{fmt(l.amount)}</b> to keep</> : null}. Time is on your side, not theirs.</>;
+                })()}
+              </div>
             )}
           </div>
         </div>

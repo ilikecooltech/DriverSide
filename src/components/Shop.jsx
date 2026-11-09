@@ -5,6 +5,7 @@ import {
   valueLabel, SAMPLE_INVENTORY, filterInventory, segmentMedian, formatFilterValue,
 } from "../data/shopping.js";
 import { Kicker, PrimaryBtn, useDesktop, VehicleImage, Slider } from "./ui.jsx";
+import { LeverageLine } from "./Leverage.jsx";
 
 /* Shop — where the journey starts. The goal picks what you see; the
    filters are the six that change the answer, not forty that don't.
@@ -218,10 +219,8 @@ export function Shop({ archetypeKey, archetypeName, setup, savedIds, onSave, onO
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12.5 }}>
                   <span style={{ color: tone, fontWeight: 700 }}>{val.text}</span>
-                  <span style={{ fontFamily: mono, fontSize: 12, color: C.inkSoft, marginLeft: "auto" }}>
-                    {v.days ? `${v.days} days on lot` : ""}
-                  </span>
                 </div>
+                <LeverageLine price={v.price} days={v.days} />
                 <div style={{ fontSize: 11.5, color: C.inkSoft, marginTop: 6 }}>{v.dealer}</div>
               </div>
               </button>

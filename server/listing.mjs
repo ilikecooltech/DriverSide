@@ -93,7 +93,10 @@ export function toListing(l) {
     price: l.price, miles: l.miles ?? 0,
     bodyType: normalizeBody(b.body_type),
     dealer: d.name || l.source || "Dealer",
-    days: l.dom_active ?? l.dom ?? 0,
+    /* Days at this dealer (dos_active), not across every dealer that has
+       had the car: what they've spent holding it starts when it reached
+       their lot. Falls back to market-wide days when that's all we have. */
+    days: l.dos_active ?? l.dom_active ?? l.dom ?? 0,
     certified: Boolean(l.is_certified),
     image: photos[0] || null,
     photos,
